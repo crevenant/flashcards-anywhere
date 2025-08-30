@@ -118,7 +118,7 @@ main {
 .choice h1, .choice h2, .choice h3, .choice h4, .choice h5, .choice h6 { margin: 0; font-size: 1em; }
 .face #front-text, #card-back { white-space: pre-wrap; line-height: 1.6; }
 .face.front { flex-direction: column; justify-content: space-between; }
-.face #front-text { margin: 0 auto; max-width: 680px; }
+.face #front-text { margin: 0; max-width: none; width: 100%; }
 .choices-section { width: 100%; margin-top: 16px; padding-top: 12px; border-top: 1px solid #1f2937; background: linear-gradient(180deg, transparent, rgba(0,0,0,0.12)); }
 .choices { display: grid; gap: 10px; width: 100%; margin: 0; grid-template-columns: 1fr; }
 .choice { text-align: left; width: 100%; display: block; white-space: pre-wrap; }
