@@ -125,7 +125,7 @@
     choiceOrder: null, // array mapping displayed index -> original index for current MCQ card
     deckMap: {},
     cardsPage: 1,
-    cardsPerPage: 50,
+    cardsPerPage: 10,
     cardsFilter: '',
     timerEnabled: false,
     autoAdvanceEnabled: false,
