@@ -567,11 +567,3 @@ def run():
 
 if __name__ == '__main__':
     run()
-            cav = payload['choices_as_cards']
-            if isinstance(cav, bool):
-                fields.append('choices_as_cards = ?')
-                values.append(1 if cav else 0)
-            else:
-                self._set_json_headers(HTTPStatus.BAD_REQUEST)
-                self.wfile.write(json.dumps({"error": "'choices_as_cards' must be a boolean"}).encode('utf-8'))
-                return
