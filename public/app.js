@@ -499,7 +499,7 @@
         const mc = document.createElement('div'); mc.className = 'mini-choices';
         const answers = card.multi ? (card.answers || []) : (card.answer != null ? [card.answer] : []);
         const texts = (answers || []).map(i => (card.choices || [])[i]).filter(Boolean);
-        texts.slice(0, 3).forEach(txt => { const d = document.createElement('div'); d.className = 'mini-choice'; renderSafe(d, txt); mc.appendChild(d); });
+        texts.forEach(txt => { const d = document.createElement('div'); d.className = 'mini-choice'; renderSafe(d, txt); mc.appendChild(d); });
         tile.appendChild(mc);
       } else {
         // For basic, show a hint of the back
