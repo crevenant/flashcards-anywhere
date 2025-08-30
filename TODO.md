@@ -1,7 +1,7 @@
 - [X] Fix Codex
 - [X] Add Auto-advance
 - [ ] Setup card statistics
-- [ ] FavIcon
+- [X] FavIcon
 - [ ] x
 - [ ] x
 - [ ] x
