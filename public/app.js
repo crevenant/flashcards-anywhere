@@ -861,27 +861,22 @@
     cancel.addEventListener('click', async () => { await refresh(); if (window.setCardsVisible) window.setCardsVisible(true); });
   }
 
-  // For MCQ cards, let the card size to fit visible content (max 350px)
+  // Size the flashcard to fit the currently visible content
   function adjustCardHeight() {
     const c = state.cards[state.idx];
     if (!c) return;
     const type = (c.type || 'basic');
+    // Choose the element that is visible: MCQ always on front; basic depends on flip
+    let faceEl = null;
     if (type === 'mcq') {
-      const el = els.front;
-      if (!el) return;
-      // Measure the front face content
-      const h = el.scrollHeight;
-      const maxH = 350;
-      if (h && h > 0) {
-        const finalH = Math.min(h, maxH);
-        els.card.style.height = finalH + 'px';
-        // Allow internal scrolling if content exceeds cap
-        el.classList.toggle('scroll', h > maxH);
-      }
+      faceEl = els.front;
     } else {
-      // Revert to default CSS height for non-MCQ
-      els.card.style.height = '';
-      if (els.front) els.front.classList.remove('scroll');
+      faceEl = state.showBack ? els.back : els.front;
+    }
+    if (!faceEl) return;
+    const h = faceEl.scrollHeight;
+    if (h && h > 0) {
+      els.card.style.height = h + 'px';
     }
   }
 
