@@ -67,6 +67,8 @@
     multiChecked: false,
     allowHTML: false,
     showAdder: false,
+    lastCardId: null,
+    choiceOrder: null, // array mapping displayed index -> original index for current MCQ card
   };
   const DELAY_MS = 1200; // delay before reset/advance
   const FLIP_MS = 500;   // CSS flip transition duration (keep in sync with styles)
@@ -128,11 +130,27 @@
       return;
     }
     const c = state.cards[state.idx];
+    // Prepare shuffled order for MCQ whenever entering a new card
+    if ((c.type || 'basic') === 'mcq') {
+      if (state.lastCardId !== c.id || !state.choiceOrder || state.choiceOrder.length !== (c.choices || []).length) {
+        state.choiceOrder = Array.from({ length: (c.choices || []).length }, (_, i) => i);
+        for (let i = state.choiceOrder.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [state.choiceOrder[i], state.choiceOrder[j]] = [state.choiceOrder[j], state.choiceOrder[i]];
+        }
+        state.lastCardId = c.id;
+      }
+    } else {
+      state.choiceOrder = null;
+      state.lastCardId = c.id;
+    }
     renderSafe(els.frontText, c.front);
     if ((c.type || 'basic') === 'mcq') {
       // Build choices
       els.mcqChoices.innerHTML = '';
-      (c.choices || []).forEach((ch, i) => {
+      const order = state.choiceOrder || (c.choices || []).map((_, i) => i);
+      order.forEach((origIdx, i) => {
+        const ch = c.choices[origIdx];
         const btn = document.createElement('button');
         btn.type = 'button';
         renderSafe(btn, ch);
@@ -141,7 +159,7 @@
           btn.addEventListener('click', () => toggleMultiChoice(i));
           if (state.multiSelected.has(i)) btn.classList.add('selected');
           if (state.multiChecked) {
-            const isAnswer = (c.answers || []).includes(i);
+            const isAnswer = (c.answers || []).includes(origIdx);
             if (isAnswer) btn.classList.add('correct');
             if (!isAnswer && state.multiSelected.has(i)) btn.classList.add('wrong');
           }
@@ -288,12 +306,16 @@
     const c = state.cards[state.idx];
     if ((c.type || 'basic') !== 'mcq') return;
     state.selected = i;
-    state.correct = (i === c.answer);
+    const order = state.choiceOrder || (c.choices || []).map((_, k) => k);
+    const chosenOrig = order[i];
+    state.correct = (chosenOrig === c.answer);
     renderCard();
     // Reset after short delay
     clearTimer();
     if (state.correct) {
       state.resetTimer = setTimeout(() => {
+        // Hide result panel before transitioning
+        clearResult();
         nextAnimated();
         state.resetTimer = null;
       }, DELAY_MS);
@@ -307,29 +329,6 @@
     }
   }
 
-  function setResult(message, correctTexts) {
-    els.mcqResult.innerHTML = '';
-    if (message) {
-      const p = document.createElement('p');
-      p.textContent = message;
-      els.mcqResult.appendChild(p);
-    }
-    if (correctTexts && correctTexts.length) {
-      const list = document.createElement('div');
-      list.className = 'correct-list';
-      correctTexts.forEach(text => {
-        const div = document.createElement('div');
-        div.className = 'choice correct-item correct';
-        div.textContent = text;
-        list.appendChild(div);
-      });
-      els.mcqResult.appendChild(list);
-    }
-  }
-
-  function clearResult() {
-    els.mcqResult.innerHTML = '';
-  }
 
   function toggleMultiChoice(i) {
     const c = state.cards[state.idx];
@@ -340,13 +339,22 @@
 
   // Result rendering with HTML support in correct answer text
   function setResult(message, correctTexts) {
+    // Style state on container (ok/err)
+    els.mcqResult.classList.toggle('ok', message && /^Correct/i.test(message));
+    els.mcqResult.classList.toggle('err', message && /^Wrong/i.test(message));
     els.mcqResult.innerHTML = '';
+    els.mcqResult.hidden = false;
     if (message) {
       const p = document.createElement('p');
+      p.className = 'status ' + (/^Correct/i.test(message) ? 'success' : 'error');
       p.textContent = message;
       els.mcqResult.appendChild(p);
     }
     if (correctTexts && correctTexts.length) {
+      const label = document.createElement('p');
+      label.className = 'label';
+      label.textContent = 'Correct answer' + (correctTexts.length > 1 ? 's' : '');
+      els.mcqResult.appendChild(label);
       const list = document.createElement('div');
       list.className = 'correct-list';
       correctTexts.forEach(text => {
@@ -358,15 +366,19 @@
       els.mcqResult.appendChild(list);
     }
   }
-  function clearResult() { els.mcqResult.innerHTML = ''; }
+  function clearResult() { els.mcqResult.classList.remove('ok','err'); els.mcqResult.innerHTML = ''; els.mcqResult.hidden = true; }
 
   function checkMulti() {
     const c = state.cards[state.idx];
     if ((c.type || 'basic') !== 'mcq' || !c.multi) return;
     const answers = new Set((c.answers || []));
+    const order = state.choiceOrder || (c.choices || []).map((_, k) => k);
     let ok = answers.size === state.multiSelected.size;
     if (ok) {
-      for (const idx of state.multiSelected) { if (!answers.has(idx)) { ok = false; break; } }
+      for (const dispIdx of state.multiSelected) {
+        const origIdx = order[dispIdx];
+        if (!answers.has(origIdx)) { ok = false; break; }
+      }
     }
     state.multiChecked = true;
     state.correct = ok;
@@ -374,6 +386,7 @@
     clearTimer();
     if (ok) {
       state.resetTimer = setTimeout(() => {
+        clearResult();
         nextAnimated();
         state.resetTimer = null;
       }, DELAY_MS);

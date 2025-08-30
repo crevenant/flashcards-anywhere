@@ -8,6 +8,8 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+/* Ensure any element with the HTML 'hidden' attribute is not displayed */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", Meiryo, "Noto Sans JP", "Source Han Sans JP", sans-serif;
@@ -52,8 +54,10 @@ main {
 #main.single-column { grid-template-columns: 1fr; }
 /* Let the card breathe a bit more when single column */
 #main.single-column .card { width: min(1100px, 100%); }
+#main.single-column .viewer .result { width: min(1100px, 100%); }
 
 .viewer { display: grid; gap: 12px; }
+.viewer .result { width: min(820px, 100%); margin: 0 auto; }
 .card {
   position: relative;
   width: min(820px, 100%);
@@ -102,7 +106,17 @@ main {
 .choice.selected { border-color: var(--accent); color: var(--text); background: rgba(96,165,250,0.08); }
 .choice.correct { border-color: #16a34a; color: #16a34a; }
 .choice.wrong { border-color: #ef4444; color: #ef4444; }
-.result { margin-top: 8px; color: var(--muted); }
+.result { margin-top: 12px; color: var(--muted); display: grid; gap: 10px; padding: 12px; border: 1px solid #1f2937; border-radius: 10px; background: linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.16)); animation: fadeIn 180ms ease-in; }
+.result.ok { border-color: #16a34a; box-shadow: inset 0 0 0 1px rgba(22,163,74,0.2); }
+.result.err { border-color: #ef4444; box-shadow: inset 0 0 0 1px rgba(239,68,68,0.2); }
+.result .status { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #e5e7eb; }
+.result .status.success::before { content: "✓"; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; background: #16a34a; color: white; font-size: 14px; }
+.result .status.error::before { content: "✕"; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; background: #ef4444; color: white; font-size: 14px; }
+.result .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.result .correct-list { display: grid; gap: 10px; width: 100%; grid-template-columns: 1fr; }
+.correct-item { cursor: default; }
+.correct-item.correct { background: rgba(22,163,74,0.08); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 .result p { margin: 0 0 8px 0; }
 .result .correct-list { display: grid; gap: 10px; width: 100%; grid-template-columns: 1fr; }
 .correct-item { cursor: default; }
