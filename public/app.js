@@ -1000,7 +1000,9 @@
       state.autoAdvanceEnabled = !!on;
       els.autoAdvBtn.classList.toggle('active', state.autoAdvanceEnabled);
       els.autoAdvBtn.setAttribute('aria-pressed', state.autoAdvanceEnabled ? 'true' : 'false');
-      // Keep existing SVG icon; no label changes
+      // Show seconds on the button when enabled, like the timer button
+      const secs = Math.round((state.autoAdvanceDelayMs || 5000) / 1000);
+      els.autoAdvBtn.textContent = state.autoAdvanceEnabled ? `Auto-Advance ${secs}s` : 'Auto-Advance';
       try { localStorage.setItem('autoAdvanceEnabled', state.autoAdvanceEnabled ? '1' : '0'); } catch {}
       if (state.autoAdvanceEnabled) startAutoAdvance(); else clearAutoAdvance();
     };
