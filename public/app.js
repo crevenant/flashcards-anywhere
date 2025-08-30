@@ -169,8 +169,13 @@
       if (pct < 1) {
         state.timerRAF = requestAnimationFrame(tick);
       } else {
-        // Give a moment to show the bar filled, then clear it
-        setTimeout(() => clearCardTimer(), 300);
+        // Give a moment to show the bar filled, then clear timer UI only
+        setTimeout(() => {
+          if (els.cardTimer) els.cardTimer.hidden = true;
+          if (els.cardTimerProgress) els.cardTimerProgress.style.width = '0%';
+          state.timerStart = null;
+          state.timerRAF = null;
+        }, 300);
         // Time's up: reveal the correct answer; do not auto-advance
         const c = state.cards[state.idx];
         if (!c) return;
@@ -211,13 +216,27 @@
     clearAutoAdvance();
     if (!state.autoAdvanceEnabled) return;
     if (!els.viewerSection || els.viewerSection.hidden) return;
-    // Only auto-advance from the front
-    if (state.showBack) return;
+    // Actual triggering condition is checked by shouldAutoAdvanceFromState()
     state.autoAdvanceTimer = setTimeout(() => {
       if (!state.autoAdvanceEnabled) return;
       if (els.viewerSection && els.viewerSection.hidden) return;
       next();
     }, state.autoAdvanceDelayMs);
+  }
+
+  function shouldAutoAdvanceFromState() {
+    if (!state.autoAdvanceEnabled) return false;
+    if (els.viewerSection && els.viewerSection.hidden) return false;
+    const c = state.cards[state.idx];
+    if (!c) return false;
+    const type = (c.type || 'basic');
+    if (type === 'basic') {
+      // Only once the card has been flipped to back
+      return !!state.showBack;
+    } else {
+      // MCQ: only after an answer is selected (single) or checked (multi)
+      return c.multi ? !!state.multiChecked : (state.selected != null);
+    }
   }
 
   function updateViewerVisibility() {
@@ -653,9 +672,9 @@
     }
     els.card.classList.toggle('flipped', state.showBack);
     els.pos.textContent = `${state.idx + 1} / ${state.cards.length}`;
-    // Start/restart timers when arriving on a card front
+    // Start/restart timers
     if (state.timerEnabled && !state.showBack && !state.timerHold) startCardTimer();
-    if (state.autoAdvanceEnabled && !state.showBack && (!els.viewerSection || !els.viewerSection.hidden)) startAutoAdvance();
+    if (shouldAutoAdvanceFromState()) startAutoAdvance(); else clearAutoAdvance();
   }
 
   function next() {
@@ -774,9 +793,10 @@
     const order = state.choiceOrder || (c.choices || []).map((_, k) => k);
     const chosenOrig = order[i];
     state.correct = (chosenOrig === c.answer);
-    renderCard();
-    // Show result and hold until user moves to next
+    // Clear timers first; render will re-schedule auto-advance if enabled and applicable
     clearCardTimer();
+    renderCard();
+    // Show result and hold until user moves to next (auto-advance may handle this if enabled)
   }
 
 
@@ -785,6 +805,8 @@
     if ((c.type || 'basic') !== 'mcq' || !c.multi || state.multiChecked) return;
     state.timeoutReveal = false;
     if (state.multiSelected.has(i)) state.multiSelected.delete(i); else state.multiSelected.add(i);
+    // User is still selecting; ensure no pending auto-advance
+    clearCardTimer();
     renderCard();
   }
 
@@ -838,9 +860,10 @@
     }
     state.multiChecked = true;
     state.correct = ok;
-    renderCard();
+    // Clear timers before rendering; render will schedule auto-advance if applicable
     clearTimer();
     clearCardTimer();
+    renderCard();
     // Keep result visible; wait for user to move to next card
   }
 
@@ -877,9 +900,10 @@
     if (c && (c.type || 'basic') === 'basic') {
       state.timeoutReveal = false;
       state.showBack = !state.showBack;
-      renderCard();
+      // Clear timers first, then render to allow re-scheduling based on new state
       clearTimer();
       clearCardTimer();
+      renderCard();
       // If showing back, keep it until user navigates; no auto-advance
     }
   });
@@ -898,9 +922,9 @@
       if (type === 'basic') {
         state.timeoutReveal = false;
         state.showBack = !state.showBack;
-        renderCard();
         clearTimer();
         clearCardTimer();
+        renderCard();
       }
     } else if (e.key === 'ArrowRight') {
       next();
