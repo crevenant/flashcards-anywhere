@@ -411,21 +411,24 @@
     tdDeck.appendChild(deckSel); tr.appendChild(tdDeck);
     // Type label
     const tdType = document.createElement('td'); tdType.className = 'cell-type'; tdType.textContent = type.toUpperCase(); tr.appendChild(tdType);
-    // Front input
+    // Front input (use textarea for more viewing space)
     const tdFront = document.createElement('td');
-    const frontInput = document.createElement('input'); frontInput.type = 'text'; frontInput.value = card.front || ''; frontInput.style.width = '100%';
+    const frontInput = document.createElement('textarea');
+    frontInput.value = card.front || '';
+    frontInput.style.width = '100%';
+    frontInput.rows = 6;
     tdFront.appendChild(frontInput); tr.appendChild(tdFront);
     // Back/Answers editor
     const tdBack = document.createElement('td');
     let backInput, choicesArea, multiChk, answerInput, answersInput;
     if (type === 'basic') {
       backInput = document.createElement('textarea');
-      backInput.value = card.back || ''; backInput.style.width = '100%'; backInput.rows = 3;
+      backInput.value = card.back || ''; backInput.style.width = '100%'; backInput.rows = 8;
       tdBack.appendChild(backInput);
     } else {
       multiChk = document.createElement('input'); multiChk.type = 'checkbox'; multiChk.checked = !!card.multi;
       const multiLbl = document.createElement('label'); multiLbl.className = 'inline'; multiLbl.appendChild(multiChk); multiLbl.appendChild(document.createTextNode(' Allow multiple answers'));
-      choicesArea = document.createElement('textarea'); choicesArea.style.width = '100%'; choicesArea.rows = 3; choicesArea.value = (card.choices || []).join('\n');
+      choicesArea = document.createElement('textarea'); choicesArea.style.width = '100%'; choicesArea.rows = 8; choicesArea.value = (card.choices || []).join('\n');
       answerInput = document.createElement('input'); answerInput.type = 'number'; answerInput.min = '1'; answerInput.value = (card.answer != null ? (card.answer+1) : 1); answerInput.style.width = '100%';
       answersInput = document.createElement('input'); answersInput.type = 'text'; answersInput.placeholder = 'e.g. 1,3'; answersInput.value = (card.answers || []).map(i => i+1).join(','); answersInput.style.width = '100%';
       const singleWrap = document.createElement('div'); singleWrap.className = 'form-block';
