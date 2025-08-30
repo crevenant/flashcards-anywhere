@@ -857,13 +857,20 @@
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
       const c = state.cards[state.idx];
-      if (c && (c.type || 'basic') === 'basic') {
+      if (!c) return;
+      const type = (c.type || 'basic');
+      // If answer/result is showing, space/enter advances (mouse click does not)
+      if ((type === 'basic' && state.showBack) || (type === 'mcq' && (state.multiChecked || state.selected !== null))) {
+        next();
+        return;
+      }
+      // Otherwise, for basic cards, toggle front/back
+      if (type === 'basic') {
         state.timeoutReveal = false;
         state.showBack = !state.showBack;
         renderCard();
         clearTimer();
         clearCardTimer();
-        // If showing back, keep it until user navigates; no auto-advance
       }
     } else if (e.key === 'ArrowRight') {
       next();
