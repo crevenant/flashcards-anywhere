@@ -459,6 +459,16 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
                 self._set_json_headers(HTTPStatus.BAD_REQUEST)
                 self.wfile.write(json.dumps({"error": "'multi' must be a boolean"}).encode('utf-8'))
                 return
+        # toggle choices_as_cards (boolean)
+        if 'choices_as_cards' in payload:
+            cav = payload['choices_as_cards']
+            if isinstance(cav, bool):
+                fields.append('choices_as_cards = ?')
+                values.append(1 if cav else 0)
+            else:
+                self._set_json_headers(HTTPStatus.BAD_REQUEST)
+                self.wfile.write(json.dumps({"error": "'choices_as_cards' must be a boolean"}).encode('utf-8'))
+                return
         if 'deck' in payload and isinstance(payload['deck'], str):
             deck_name = payload['deck'].strip()
             conn = get_connection()
@@ -557,8 +567,6 @@ def run():
 
 if __name__ == '__main__':
     run()
-        # toggle choices_as_cards (boolean)
-        if 'choices_as_cards' in payload:
             cav = payload['choices_as_cards']
             if isinstance(cav, bool):
                 fields.append('choices_as_cards = ?')
