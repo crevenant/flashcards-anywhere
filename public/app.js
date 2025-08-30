@@ -720,6 +720,27 @@
     // Start/restart timers
     if (state.timerEnabled && !state.showBack && !state.timerHold) startCardTimer();
     if (shouldAutoAdvanceFromState()) startAutoAdvance(); else clearAutoAdvance();
+    // Adjust card height for MCQ to fit content
+    adjustCardHeight();
+  }
+
+  // For MCQ cards, let the card size to fit visible content
+  function adjustCardHeight() {
+    const c = state.cards[state.idx];
+    if (!c) return;
+    const type = (c.type || 'basic');
+    if (type === 'mcq') {
+      const el = els.front;
+      if (!el) return;
+      // Measure the front face content
+      const h = el.scrollHeight;
+      if (h && h > 0) {
+        els.card.style.height = h + 'px';
+      }
+    } else {
+      // Revert to default CSS height for non-MCQ
+      els.card.style.height = '';
+    }
   }
 
   function next() {
@@ -981,6 +1002,8 @@
   els.next.addEventListener('click', next);
   els.prev.addEventListener('click', prev);
   els.shuffleBtn.addEventListener('click', shuffle);
+  // Recalculate MCQ height on window resize
+  window.addEventListener('resize', () => adjustCardHeight());
   if (els.timerBtn) {
     const setTimerEnabled = (on) => {
       state.timerEnabled = !!on;
