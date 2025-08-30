@@ -931,8 +931,8 @@
       state.autoAdvanceEnabled = !!on;
       els.autoAdvBtn.classList.toggle('active', state.autoAdvanceEnabled);
       els.autoAdvBtn.setAttribute('aria-pressed', state.autoAdvanceEnabled ? 'true' : 'false');
-      // Keep label as icon-only
-      els.autoAdvBtn.textContent = '⏱→';
+      // Keep label as icon-only (clock + clockwise arrow)
+      els.autoAdvBtn.textContent = '⏰↻';
       try { localStorage.setItem('autoAdvanceEnabled', state.autoAdvanceEnabled ? '1' : '0'); } catch {}
       if (state.autoAdvanceEnabled) startAutoAdvance(); else clearAutoAdvance();
     };
