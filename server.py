@@ -63,6 +63,19 @@ def init_db():
             cur.execute("ALTER TABLE cards ADD COLUMN answers TEXT")
         if 'choices_as_cards' not in cols:
             cur.execute("ALTER TABLE cards ADD COLUMN choices_as_cards INTEGER NOT NULL DEFAULT 0")
+        # Reviews table for per-answer statistics
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                card_id INTEGER NOT NULL,
+                ts TEXT DEFAULT (datetime('now')),
+                result TEXT NOT NULL, -- 'correct' | 'wrong' | 'timeout' | 'reveal'
+                duration_ms INTEGER,
+                FOREIGN KEY(card_id) REFERENCES cards(id) ON DELETE CASCADE
+            );
+            """
+        )
 
         # Seed with a default deck and a few cards if empty
         cur.execute("SELECT COUNT(*) FROM decks;")
@@ -171,6 +184,34 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
     # ---- API handlers ----
     def handle_api_get(self):
         parsed = urlparse(self.path)
+        # Per-card aggregated stats
+        mstats = re.match(r"^/api/cards/(\d+)/stats$", parsed.path or "")
+        if mstats:
+            card_id = int(mstats.group(1))
+            conn = get_connection()
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT COUNT(*), SUM(result='correct'), SUM(result='wrong'), SUM(result='timeout'), AVG(duration_ms), MAX(ts) FROM reviews WHERE card_id = ?", (card_id,))
+                row = cur.fetchone() or (0,0,0,0,None,None)
+                total = int(row[0] or 0)
+                correct = int(row[1] or 0)
+                wrong = int(row[2] or 0)
+                timeout = int(row[3] or 0)
+                avg_ms = int(row[4]) if row[4] is not None else None
+                last = row[5]
+                self._set_json_headers()
+                self.wfile.write(json.dumps({
+                    "card_id": card_id,
+                    "total": total,
+                    "correct": correct,
+                    "wrong": wrong,
+                    "timeout": timeout,
+                    "avg_duration_ms": avg_ms,
+                    "last_ts": last,
+                }).encode('utf-8'))
+            finally:
+                conn.close()
+            return
         if parsed.path == '/api/cards':
             qs = parse_qs(parsed.query or '')
             deck = qs.get('deck', [None])[0]
@@ -211,6 +252,43 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
 
     def handle_api_post(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/reviews':
+            payload = self._read_json()
+            try:
+                card_id = int(payload.get('card_id'))
+            except Exception:
+                self._set_json_headers(HTTPStatus.BAD_REQUEST)
+                self.wfile.write(json.dumps({"error": "'card_id' is required and must be an integer"}).encode('utf-8'))
+                return
+            result = str(payload.get('result') or '').strip().lower()
+            if result not in ('correct','wrong','timeout','reveal'):
+                self._set_json_headers(HTTPStatus.BAD_REQUEST)
+                self.wfile.write(json.dumps({"error": "'result' must be one of: correct, wrong, timeout, reveal"}).encode('utf-8'))
+                return
+            dur = payload.get('duration_ms')
+            if dur is not None:
+                try:
+                    dur = int(dur)
+                except Exception:
+                    self._set_json_headers(HTTPStatus.BAD_REQUEST)
+                    self.wfile.write(json.dumps({"error": "'duration_ms' must be an integer"}).encode('utf-8'))
+                    return
+            conn = get_connection()
+            try:
+                cur = conn.cursor()
+                # Ensure card exists
+                cur.execute("SELECT 1 FROM cards WHERE id = ?", (card_id,))
+                if cur.fetchone() is None:
+                    self._set_json_headers(HTTPStatus.NOT_FOUND)
+                    self.wfile.write(json.dumps({"error": "Card not found"}).encode('utf-8'))
+                    return
+                cur.execute("INSERT INTO reviews (card_id, result, duration_ms) VALUES (?, ?, ?)", (card_id, result, dur))
+                conn.commit()
+                self._set_json_headers(HTTPStatus.CREATED)
+                self.wfile.write(json.dumps({"ok": True, "id": cur.lastrowid}).encode('utf-8'))
+            finally:
+                conn.close()
+            return
         if parsed.path == '/api/cards':
             payload = self._read_json()
             front = (payload.get('front') or '').strip()

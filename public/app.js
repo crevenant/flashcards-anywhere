@@ -46,6 +46,12 @@
       const r = await fetch('/api/decks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
       if (!r.ok) throw new Error('Failed to create deck');
       return await r.json();
+    },
+    async review(card_id, result, duration_ms) {
+      try {
+        const r = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card_id, result, duration_ms }) });
+        return r.ok;
+      } catch { return false; }
     }
   };
 
@@ -138,6 +144,8 @@
     autoAdvanceTimer: null,
     autoAdvanceStart: null,
     autoAdvanceRAF: null,
+    viewStart: null,
+    logged: false,
   };
   
   function clearAutoAdvance() {
@@ -800,6 +808,12 @@
     // Start/restart timers
     if (state.timerEnabled && !state.showBack && !state.timerHold) startCardTimer();
     if (shouldAutoAdvanceFromState()) startAutoAdvance(); else clearAutoAdvance();
+    // Mark start time for metrics when entering a new card id
+    if (state.viewedCardId !== c.id) {
+      state.viewStart = performance.now();
+      state.logged = false;
+      state.viewedCardId = c.id;
+    }
     // Adjust card height for MCQ to fit content
     adjustCardHeight();
   }
@@ -1002,6 +1016,12 @@
     clearCardTimer();
     renderCard();
     // Show result and hold until user moves to next (auto-advance may handle this if enabled)
+    // Log once per card
+    if (!state.logged && state.viewStart != null) {
+      const dur = Math.max(0, Math.round(performance.now() - state.viewStart));
+      api.review(c.id, state.correct ? 'correct' : 'wrong', dur);
+      state.logged = true;
+    }
   }
 
 
@@ -1073,6 +1093,11 @@
     clearCardTimer();
     renderCard();
     // Keep result visible; wait for user to move to next card
+    if (!state.logged && state.viewStart != null) {
+      const dur = Math.max(0, Math.round(performance.now() - state.viewStart));
+      api.review(c.id, state.correct ? 'correct' : 'wrong', dur);
+      state.logged = true;
+    }
   }
 
   function clearTimer() {
