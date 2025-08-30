@@ -75,6 +75,8 @@ main {
 /* Smooth next-card transition (used after flip returns to front) */
 .card.advance-out { animation: cardOut 240ms ease forwards; }
 .card.advance-in { animation: cardIn 260ms ease forwards; }
+/* During next-card transition out, hide inner fields to avoid flicker */
+.card.advance-out .face > * { visibility: hidden; }
 @keyframes cardOut {
   0% { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(8px) scale(0.98); }
