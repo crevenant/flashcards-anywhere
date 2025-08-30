@@ -53,6 +53,7 @@
     deckSelect: document.getElementById('deck-select'),
     shuffleBtn: document.getElementById('shuffle-btn'),
     timerBtn: document.getElementById('timer-btn'),
+    autoAdvBtn: document.getElementById('auto-adv-btn'),
     toggleAddBtn: document.getElementById('toggle-add-btn'),
     toggleDecksBtn: document.getElementById('toggle-decks-btn'),
     toggleCardsBtn: document.getElementById('toggle-cards-btn'),
@@ -125,13 +126,23 @@
     cardsPerPage: 5,
     cardsFilter: '',
     timerEnabled: false,
+    autoAdvanceEnabled: false,
     timerDurationMs: 10000,
+    autoAdvanceDelayMs: 5000,
     timerStart: null,
     timerRAF: null,
     timerHold: false,
     timeoutReveal: false,
+    autoAdvanceTimer: null,
   };
   
+  function clearAutoAdvance() {
+    if (state.autoAdvanceTimer) {
+      clearTimeout(state.autoAdvanceTimer);
+      state.autoAdvanceTimer = null;
+    }
+  }
+
   function clearCardTimer() {
     if (state.timerRAF) {
       cancelAnimationFrame(state.timerRAF);
@@ -140,6 +151,8 @@
     state.timerStart = null;
     if (els.cardTimer) els.cardTimer.hidden = true;
     if (els.cardTimerProgress) els.cardTimerProgress.style.width = '0%';
+    // Keep auto-advance in sync with manual timer clearing
+    clearAutoAdvance();
   }
 
   function startCardTimer() {
@@ -192,6 +205,19 @@
       }
     };
     state.timerRAF = requestAnimationFrame(tick);
+  }
+
+  function startAutoAdvance() {
+    clearAutoAdvance();
+    if (!state.autoAdvanceEnabled) return;
+    if (!els.viewerSection || els.viewerSection.hidden) return;
+    // Only auto-advance from the front
+    if (state.showBack) return;
+    state.autoAdvanceTimer = setTimeout(() => {
+      if (!state.autoAdvanceEnabled) return;
+      if (els.viewerSection && els.viewerSection.hidden) return;
+      next();
+    }, state.autoAdvanceDelayMs);
   }
 
   function updateViewerVisibility() {
@@ -627,8 +653,9 @@
     }
     els.card.classList.toggle('flipped', state.showBack);
     els.pos.textContent = `${state.idx + 1} / ${state.cards.length}`;
-    // Start/restart card timer when arriving on a card front
+    // Start/restart timers when arriving on a card front
     if (state.timerEnabled && !state.showBack && !state.timerHold) startCardTimer();
+    if (state.autoAdvanceEnabled && !state.showBack && (!els.viewerSection || !els.viewerSection.hidden)) startAutoAdvance();
   }
 
   function next() {
@@ -898,6 +925,19 @@
     els.timerBtn.addEventListener('click', () => setTimerEnabled(!state.timerEnabled));
     try { state.timerEnabled = localStorage.getItem('timerEnabled') === '1'; } catch {}
     setTimerEnabled(state.timerEnabled);
+  }
+  if (els.autoAdvBtn) {
+    const setAutoAdvEnabled = (on) => {
+      state.autoAdvanceEnabled = !!on;
+      els.autoAdvBtn.classList.toggle('active', state.autoAdvanceEnabled);
+      els.autoAdvBtn.setAttribute('aria-pressed', state.autoAdvanceEnabled ? 'true' : 'false');
+      els.autoAdvBtn.textContent = state.autoAdvanceEnabled ? '⏱→ 5s' : '⏱→';
+      try { localStorage.setItem('autoAdvanceEnabled', state.autoAdvanceEnabled ? '1' : '0'); } catch {}
+      if (state.autoAdvanceEnabled) startAutoAdvance(); else clearAutoAdvance();
+    };
+    els.autoAdvBtn.addEventListener('click', () => setAutoAdvEnabled(!state.autoAdvanceEnabled));
+    try { state.autoAdvanceEnabled = localStorage.getItem('autoAdvanceEnabled') === '1'; } catch {}
+    setAutoAdvEnabled(state.autoAdvanceEnabled);
   }
   if (els.toggleAddBtn) {
     const setAdderVisible = (show) => {
