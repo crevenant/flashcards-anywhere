@@ -151,6 +151,10 @@
     state.autoAdvanceStart = null;
     const p = document.getElementById('auto-adv-progress');
     if (p && p.parentElement) p.parentElement.removeChild(p);
+    if (els.autoAdvBtn) {
+      const secs = Math.round((state.autoAdvanceDelayMs || 5000) / 1000);
+      els.autoAdvBtn.textContent = state.autoAdvanceEnabled ? `Auto-Advance ${secs}s` : 'Auto-Advance';
+    }
   }
 
   function clearCardTimer() {
@@ -242,6 +246,15 @@
       const elapsed = now - (state.autoAdvanceStart || now);
       const pct = Math.max(0, Math.min(1, elapsed / delay));
       el.style.width = (pct * 100).toFixed(2) + '%';
+      // tint from amber (38deg) to green (140deg)
+      const hue = 38 + (140 - 38) * pct;
+      el.style.background = `hsl(${hue.toFixed(0)} 80% 50%)`;
+      // Update Auto-Advance button countdown (5 → 0)
+      if (els.autoAdvBtn && state.autoAdvanceEnabled) {
+        const remaining = Math.max(0, delay - elapsed);
+        const secs = Math.ceil(remaining / 1000);
+        els.autoAdvBtn.textContent = `Auto-Advance ${secs}s`;
+      }
       if (pct < 1) {
         state.autoAdvanceRAF = requestAnimationFrame(tick);
       } else {
@@ -692,6 +705,10 @@
         btn.type = 'button';
         renderSafe(btn, ch);
         btn.className = 'choice' + (c.choices_as_cards ? ' card-choice' : '');
+        // Staggered entry animation
+        btn.classList.add('enter');
+        btn.style.animationDelay = (i * 30) + 'ms';
+        btn.addEventListener('animationend', () => btn.classList.remove('enter'), { once: true });
         if (c.multi) {
           if (!state.multiChecked) {
             btn.addEventListener('click', () => toggleMultiChoice(i));
