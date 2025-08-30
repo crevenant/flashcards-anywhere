@@ -58,7 +58,7 @@
             </label>
             <label>
               Deck
-              <input id="deck-input" placeholder="Default" />
+              <select id="deck-input"></select>
             </label>
           </div>
 
@@ -127,27 +127,55 @@ Option C"></textarea>
       <section id="cards-section" class="adder" hidden>
         <div class="adder-header">
           <h2>Cards</h2>
-          <p class="muted">Browse, filter by deck, and delete cards.</p>
+          <p class="muted">Browse, filter by deck, and delete or edit cards.</p>
         </div>
-        <div class="table-wrap">
-          <table class="card-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Deck</th>
-                <th>Type</th>
-                <th>Front</th>
-                <th>Back / Answers</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="cards-tbody"></tbody>
-          </table>
-        </div>
-        <div class="table-pager">
-          <button id="cards-prev" class="btn" aria-label="Previous page">◀</button>
-          <span id="cards-page">0 / 0</span>
-          <button id="cards-next" class="btn" aria-label="Next page">▶</button>
+        <div class="cards-grid">
+          <div class="cards-left">
+            <div class="table-controls">
+              <input id="cards-filter" type="text" placeholder="Filter cards..." />
+              <span id="cards-count" class="muted"></span>
+            </div>
+            <div class="table-wrap">
+              <table class="card-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Deck</th>
+                    <th>Type</th>
+                    <th>Front</th>
+                    <th>Back / Answers</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="cards-tbody"></tbody>
+              </table>
+            </div>
+            <div class="table-pager">
+              <button id="cards-prev" class="btn" aria-label="Previous page">◀</button>
+              <span id="cards-page">0 / 0</span>
+              <button id="cards-next" class="btn" aria-label="Next page">▶</button>
+            </div>
+          </div>
+          <aside id="cards-preview" class="card-preview" hidden>
+            <div class="preview-header">
+              <strong>Preview</strong>
+              <span id="preview-type" class="muted"></span>
+            </div>
+            <div class="preview-body">
+              <div class="preview-block">
+                <div class="label muted">Front</div>
+                <div id="preview-front" class="preview-content"></div>
+              </div>
+              <div id="preview-back-wrap" class="preview-block" hidden>
+                <div class="label muted">Back</div>
+                <div id="preview-back" class="preview-content"></div>
+              </div>
+              <div id="preview-choices-wrap" class="preview-block" hidden>
+                <div class="label muted">Choices</div>
+                <div id="preview-choices" class="choices"></div>
+              </div>
+            </div>
+          </aside>
         </div>
       </section>
     </main>

@@ -20,6 +20,15 @@
       if (!r.ok) throw new Error('Failed to add card');
       return await r.json();
     },
+    async updateCard(id, patch) {
+      const r = await fetch(`/api/cards/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch)
+      });
+      if (!r.ok) throw new Error('Failed to update card');
+      return await r.json();
+    },
     async deleteCard(id) {
       const r = await fetch(`/api/cards/${id}`, { method: 'DELETE' });
       if (r.status !== 204) throw new Error('Failed to delete card');
@@ -82,6 +91,15 @@
     cardsNext: document.getElementById('cards-next'),
     cardsPage: document.getElementById('cards-page'),
     viewerSection: document.querySelector('section.viewer'),
+    cardsFilterInput: document.getElementById('cards-filter'),
+    cardsCount: document.getElementById('cards-count'),
+    cardsPreview: document.getElementById('cards-preview'),
+    previewType: document.getElementById('preview-type'),
+    previewFront: document.getElementById('preview-front'),
+    previewBack: document.getElementById('preview-back'),
+    previewBackWrap: document.getElementById('preview-back-wrap'),
+    previewChoices: document.getElementById('preview-choices'),
+    previewChoicesWrap: document.getElementById('preview-choices-wrap'),
   };
 
   let state = {
@@ -102,6 +120,7 @@
     deckMap: {},
     cardsPage: 1,
     cardsPerPage: 5,
+    cardsFilter: '',
   };
 
   function updateViewerVisibility() {
@@ -112,7 +131,34 @@
   const FLIP_MS = 500;   // CSS flip transition duration (keep in sync with styles)
 
   // Allowlist-based HTML sanitizer for safe rendering
-  const ALLOWED_TAGS = new Set(['b','strong','i','em','u','s','br','p','ul','ol','li','code','pre','ruby','rt','rb','rp','span']);
+  const ALLOWED_TAGS = new Set(['b','strong','i','em','u','s','br','p','ul','ol','li','code','pre','ruby','rt','rb','rp','span','h1','h2','h3','h4','h5','h6','font']);
+  const ALLOWED_ATTRS = {
+    font: new Set(['color', 'size', 'face'])
+  };
+  function sanitizeAttr(tag, name, value) {
+    // Only allow attributes explicitly listed per tag
+    const allowed = ALLOWED_ATTRS[tag];
+    if (!allowed || !allowed.has(name)) return null;
+    // Basic value validation to avoid scriptable values
+    if (tag === 'font') {
+      if (name === 'color') {
+        const v = String(value).trim();
+        if (/^#[0-9a-fA-F]{3}$/.test(v) || /^#[0-9a-fA-F]{6}$/.test(v) || /^[a-zA-Z]+$/.test(v)) return v;
+        return null;
+      }
+      if (name === 'size') {
+        const v = String(value).trim();
+        if (/^[1-7]$/.test(v)) return v; // classic HTML font size 1-7
+        return null;
+      }
+      if (name === 'face') {
+        const v = String(value).trim();
+        if (/^[\w\s,-]+$/.test(v)) return v; // simple whitelist
+        return null;
+      }
+    }
+    return null;
+  }
   function sanitizeHtmlToFragment(html) {
     const template = document.createElement('template');
     template.innerHTML = html;
@@ -126,6 +172,14 @@
           return frag;
         }
         const el = document.createElement(tag);
+        // Copy a safe subset of attributes when allowed
+        if (node.attributes && node.attributes.length) {
+          for (const attr of Array.from(node.attributes)) {
+            const name = attr.name.toLowerCase();
+            const val = sanitizeAttr(tag, name, attr.value);
+            if (val != null) el.setAttribute(name, val);
+          }
+        }
         node.childNodes.forEach(ch => { const c = clean(ch); if (c) el.appendChild(c); });
         return el;
       }
@@ -156,6 +210,21 @@
     // Build id->name map
     state.deckMap = {};
     decks.forEach(d => { state.deckMap[d.id] = d.name; });
+    // Populate Add Card deck dropdown if present and is a <select>
+    if (els.deckInput && els.deckInput.tagName && els.deckInput.tagName.toLowerCase() === 'select') {
+      els.deckInput.innerHTML = '';
+      const def = document.createElement('option');
+      def.value = '';
+      def.textContent = 'Default';
+      els.deckInput.appendChild(def);
+      decks.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        els.deckInput.appendChild(opt);
+      });
+      els.deckInput.value = state.deckName || '';
+    }
     if (els.decksList) {
       els.decksList.innerHTML = '';
       decks.forEach(d => {
@@ -192,7 +261,17 @@
   function renderCardsTable() {
     if (!els.cardsTbody) return;
     els.cardsTbody.innerHTML = '';
-    const total = state.cards.length;
+    const query = (state.cardsFilter || '').trim().toLowerCase();
+    const list = !query ? state.cards : state.cards.filter(card => {
+      const type = (card.type || 'basic');
+      const deck = state.deckMap[card.deck_id] || '';
+      const backOrAns = type === 'mcq'
+        ? ((card.multi ? (card.answers || []) : (card.answer != null ? [card.answer] : [])).map(i => (card.choices || [])[i]).join(' '))
+        : (card.back || '');
+      const hay = [String(card.id), deck, type, card.front || '', backOrAns || '', (card.choices || []).join(' ')].join(' ').toLowerCase();
+      return hay.includes(query);
+    });
+    const total = list.length;
     const per = state.cardsPerPage;
     const totalPages = total === 0 ? 0 : Math.ceil(total / per);
     if (totalPages === 0) {
@@ -204,7 +283,7 @@
     }
     const start = totalPages === 0 ? 0 : (state.cardsPage - 1) * per;
     const end = totalPages === 0 ? 0 : Math.min(start + per, total);
-    const pageItems = state.cards.slice(start, end);
+    const pageItems = list.slice(start, end);
 
     pageItems.forEach(card => {
       const tr = document.createElement('tr');
@@ -221,6 +300,7 @@
         renderSafe(tdBack, card.back);
       }
       const tdActions = document.createElement('td'); tdActions.className = 'row-actions';
+      const edit = document.createElement('button'); edit.className = 'btn'; edit.textContent = 'Edit';
       const del = document.createElement('button'); del.className = 'btn'; del.textContent = 'Delete';
       del.addEventListener('click', async () => {
         if (!confirm('Delete this card?')) return;
@@ -228,6 +308,8 @@
         await refresh();
         if (window.setCardsVisible) window.setCardsVisible(true);
       });
+      edit.addEventListener('click', () => enterEditRow(tr, card));
+      tdActions.appendChild(edit);
       tdActions.appendChild(del);
       tr.appendChild(tdId); tr.appendChild(tdDeck); tr.appendChild(tdType); tr.appendChild(tdFront); tr.appendChild(tdBack); tr.appendChild(tdActions);
       els.cardsTbody.appendChild(tr);
@@ -238,6 +320,118 @@
     }
     if (els.cardsPrev) els.cardsPrev.disabled = !(totalPages > 0 && state.cardsPage > 1);
     if (els.cardsNext) els.cardsNext.disabled = !(totalPages > 0 && state.cardsPage < totalPages);
+    if (els.cardsCount) els.cardsCount.textContent = `${total} matching card${total === 1 ? '' : 's'}`;
+  }
+
+  function enterEditRow(tr, card) {
+    tr.innerHTML = '';
+    tr.classList.add('edit-row');
+    const type = (card.type || 'basic');
+    // ID
+    const tdId = document.createElement('td'); tdId.textContent = card.id; tr.appendChild(tdId);
+    // Deck select
+    const tdDeck = document.createElement('td');
+    const deckSel = document.createElement('select');
+    deckSel.style.width = '100%';
+    const def = document.createElement('option'); def.value = 'Default'; def.textContent = 'Default'; deckSel.appendChild(def);
+    const currentDeckName = state.deckMap[card.deck_id] || 'Default';
+    Object.values(state.deckMap).forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name; deckSel.appendChild(opt); });
+    deckSel.value = currentDeckName;
+    tdDeck.appendChild(deckSel); tr.appendChild(tdDeck);
+    // Type label
+    const tdType = document.createElement('td'); tdType.className = 'cell-type'; tdType.textContent = type.toUpperCase(); tr.appendChild(tdType);
+    // Front input
+    const tdFront = document.createElement('td');
+    const frontInput = document.createElement('input'); frontInput.type = 'text'; frontInput.value = card.front || ''; frontInput.style.width = '100%';
+    tdFront.appendChild(frontInput); tr.appendChild(tdFront);
+    // Back/Answers editor
+    const tdBack = document.createElement('td');
+    let backInput, choicesArea, multiChk, answerInput, answersInput;
+    if (type === 'basic') {
+      backInput = document.createElement('textarea');
+      backInput.value = card.back || ''; backInput.style.width = '100%'; backInput.rows = 3;
+      tdBack.appendChild(backInput);
+    } else {
+      multiChk = document.createElement('input'); multiChk.type = 'checkbox'; multiChk.checked = !!card.multi;
+      const multiLbl = document.createElement('label'); multiLbl.className = 'inline'; multiLbl.appendChild(multiChk); multiLbl.appendChild(document.createTextNode(' Allow multiple answers'));
+      choicesArea = document.createElement('textarea'); choicesArea.style.width = '100%'; choicesArea.rows = 3; choicesArea.value = (card.choices || []).join('\n');
+      answerInput = document.createElement('input'); answerInput.type = 'number'; answerInput.min = '1'; answerInput.value = (card.answer != null ? (card.answer+1) : 1); answerInput.style.width = '100%';
+      answersInput = document.createElement('input'); answersInput.type = 'text'; answersInput.placeholder = 'e.g. 1,3'; answersInput.value = (card.answers || []).map(i => i+1).join(','); answersInput.style.width = '100%';
+      const singleWrap = document.createElement('div'); singleWrap.className = 'form-block';
+      const singleLbl = document.createElement('div'); singleLbl.className = 'label'; singleLbl.textContent = 'Answer (1-based)';
+      singleWrap.appendChild(singleLbl); singleWrap.appendChild(answerInput);
+      const multiWrap = document.createElement('div'); multiWrap.className = 'form-block';
+      const multiLbl2 = document.createElement('div'); multiLbl2.className = 'label'; multiLbl2.textContent = 'Answers (1-based, comma-separated)';
+      multiWrap.appendChild(multiLbl2); multiWrap.appendChild(answersInput); multiWrap.style.display = multiChk.checked ? '' : 'none';
+      singleWrap.style.display = multiChk.checked ? 'none' : '';
+      multiChk.addEventListener('change', () => { multiWrap.style.display = multiChk.checked ? '' : 'none'; singleWrap.style.display = multiChk.checked ? 'none' : ''; });
+      tdBack.appendChild(multiLbl);
+      tdBack.appendChild(choicesArea);
+      tdBack.appendChild(singleWrap);
+      tdBack.appendChild(multiWrap);
+    }
+    tr.appendChild(tdBack);
+    // Actions
+    const tdActions = document.createElement('td'); tdActions.className = 'row-actions';
+    const save = document.createElement('button'); save.className = 'btn btn-primary'; save.textContent = 'Save';
+    const cancel = document.createElement('button'); cancel.className = 'btn'; cancel.textContent = 'Cancel';
+    tdActions.appendChild(save); tdActions.appendChild(cancel); tr.appendChild(tdActions);
+
+    const updatePreview = () => {
+      if (!els.cardsPreview) return;
+      els.cardsPreview.hidden = false;
+      const typeLabel = type.toUpperCase() + (type === 'mcq' ? (multiChk && multiChk.checked ? ' (MULTI)' : ' (SINGLE)') : '');
+      if (els.previewType) els.previewType.textContent = typeLabel;
+      if (els.previewFront) renderSafe(els.previewFront, frontInput.value || '');
+      if (type === 'basic') {
+        els.previewBackWrap.hidden = false;
+        els.previewChoicesWrap.hidden = true;
+        renderSafe(els.previewBack, backInput ? backInput.value || '' : '');
+      } else {
+        els.previewBackWrap.hidden = true;
+        els.previewChoicesWrap.hidden = false;
+        els.previewChoices.innerHTML = '';
+        const lines = (choicesArea.value || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        lines.forEach(txt => { const btn = document.createElement('div'); btn.className = 'choice'; renderSafe(btn, txt); els.previewChoices.appendChild(btn); });
+      }
+    };
+    // Initialize and bind live preview updates
+    updatePreview();
+    frontInput.addEventListener('input', updatePreview);
+    if (backInput) backInput.addEventListener('input', updatePreview);
+    if (choicesArea) choicesArea.addEventListener('input', updatePreview);
+    if (multiChk) multiChk.addEventListener('change', updatePreview);
+
+    save.addEventListener('click', async () => {
+      const patch = {};
+      const newFront = frontInput.value.trim(); if (newFront && newFront !== card.front) patch.front = newFront;
+      const selectedDeck = deckSel.value;
+      if ((state.deckMap[card.deck_id] || 'Default') !== selectedDeck) patch.deck = selectedDeck;
+      if (type === 'basic') {
+        const nb = (backInput.value || '').trim(); if (nb !== (card.back || '')) patch.back = nb;
+      } else {
+        const lines = (choicesArea.value || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        if (JSON.stringify(lines) !== JSON.stringify(card.choices || [])) patch.choices = lines;
+        const isMulti = !!multiChk.checked;
+        patch.multi = isMulti;
+        if (isMulti) {
+          const nums = (answersInput.value || '').split(/[^\d]+/).map(s => s.trim()).filter(Boolean).map(s => parseInt(s,10)-1);
+          const uniq = [...new Set(nums)];
+          patch.answers = uniq;
+        } else {
+          const idx = parseInt(answerInput.value, 10) - 1; patch.answer = isNaN(idx) ? null : idx;
+        }
+      }
+      try {
+        await api.updateCard(card.id, patch);
+        await refresh();
+        if (window.setCardsVisible) window.setCardsVisible(true);
+        if (els.cardsPreview) els.cardsPreview.hidden = true;
+      } catch (e) {
+        alert('Failed to save: ' + e);
+      }
+    });
+    cancel.addEventListener('click', async () => { await refresh(); if (window.setCardsVisible) window.setCardsVisible(true); if (els.cardsPreview) els.cardsPreview.hidden = true; });
   }
 
   function beginRename(row, deck) {
@@ -663,6 +857,7 @@
   }
   if (els.cardsPrev) els.cardsPrev.addEventListener('click', () => { state.cardsPage = Math.max(1, state.cardsPage - 1); renderCardsTable(); });
   if (els.cardsNext) els.cardsNext.addEventListener('click', () => { state.cardsPage = state.cardsPage + 1; renderCardsTable(); });
+  if (els.cardsFilterInput) els.cardsFilterInput.addEventListener('input', () => { state.cardsFilter = els.cardsFilterInput.value; state.cardsPage = 1; renderCardsTable(); });
   // (Deck management dropdown removed)
   if (els.deckAddForm) {
     els.deckAddForm.addEventListener('submit', async (e) => {

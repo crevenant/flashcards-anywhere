@@ -38,8 +38,10 @@ Notes
 HTML Rendering
 --------------
 - Card text renders as limited, safe HTML (e.g., Japanese furigana with `<ruby>`/`<rt>`).
-- Allowed tags: `b, strong, i, em, u, s, br, p, ul, ol, li, code, pre, ruby, rt, rb, rp, span`.
-- All attributes are stripped; scripts, images, links and event handlers are not allowed.
+- Allowed tags: `b, strong, i, em, u, s, br, p, ul, ol, li, code, pre, ruby, rt, rb, rp, span, h1, h2, h3, h4, h5, h6, font`.
+- Allowed attributes:
+  - `<font>`: `color` (named color or hex), `size` (1–7), `face` (simple font list).
+- Other attributes are stripped; scripts, images, links and event handlers are not allowed.
 
 Card Types
 ----------
