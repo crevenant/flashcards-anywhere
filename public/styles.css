@@ -241,6 +241,16 @@ main {
 .card-table .edit-row .form-block .label { font-size: 12px; color: #94a3b8; }
 .cards-grid { display: grid; grid-template-columns: 1fr 340px; gap: 12px; }
 .card-preview { border: 1px solid #1f2937; border-radius: 12px; padding: 12px; background: #0b1225e6; height: fit-content; position: sticky; top: 72px; }
+.cards-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.mini-card { position: relative; border: 1px solid #1f2937; border-radius: 12px; background: #0b1225; padding: 10px; min-height: 120px; display: grid; align-content: center; justify-items: center; overflow: hidden; }
+.mini-card .mini-type { position: absolute; top: 8px; left: 8px; font-size: 11px; color: #93a1b3; }
+.mini-card .mini-content { width: 100%; text-align: center; font-size: 22px; line-height: 1.4; white-space: normal; word-break: break-word; }
+.mini-card .actions { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: grid; gap: 8px; opacity: 0; transition: opacity 160ms ease; }
+.mini-card:hover .actions, .mini-card:focus-within .actions { opacity: 1; }
+.mini-card .icon-btn { width: 40px; height: 40px; border-radius: 999px; background: #0b1225; border: 1px solid #1f2937; color: var(--text); display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+.mini-card .icon-btn:hover { border-color: var(--accent); }
+.mini-card .mini-choices { display: grid; gap: 6px; margin-top: 8px; width: 100%; }
+.mini-card .mini-choice { border: 1px dashed #1f2937; border-radius: 8px; padding: 6px; font-size: 16px; }
 .preview-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .preview-body { display: grid; gap: 12px; }
 .preview-block .label { font-size: 12px; margin-bottom: 4px; }

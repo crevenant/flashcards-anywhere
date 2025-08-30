@@ -90,6 +90,7 @@
     deckNewInput: document.getElementById('deck-new-input'),
     cardsSection: document.getElementById('cards-section'),
     cardsTbody: document.getElementById('cards-tbody'),
+    cardsList: document.getElementById('cards-list'),
     cardsPrev: document.getElementById('cards-prev'),
     cardsNext: document.getElementById('cards-next'),
     cardsPage: document.getElementById('cards-page'),
@@ -460,8 +461,9 @@
   }
 
   function renderCardsTable() {
-    if (!els.cardsTbody) return;
-    els.cardsTbody.innerHTML = '';
+    // Render as mini-cards grid instead of table
+    if (!els.cardsList) return;
+    els.cardsList.innerHTML = '';
     const query = (state.cardsFilter || '').trim().toLowerCase();
     const list = !query ? state.cards : state.cards.filter(card => {
       const type = (card.type || 'basic');
@@ -487,33 +489,34 @@
     const pageItems = list.slice(start, end);
 
     pageItems.forEach(card => {
-      const tr = document.createElement('tr');
-      const tdId = document.createElement('td'); tdId.textContent = card.id;
-      const tdDeck = document.createElement('td'); tdDeck.textContent = state.deckMap[card.deck_id] || '';
-      const tdType = document.createElement('td'); tdType.className = 'cell-type'; tdType.textContent = (card.type || 'basic').toUpperCase();
-      const tdFront = document.createElement('td'); tdFront.className = 'cell-front'; renderSafe(tdFront, card.front);
-      const tdBack = document.createElement('td'); tdBack.className = 'cell-back';
+      const tile = document.createElement('div');
+      tile.className = 'mini-card';
+      const typeBadge = document.createElement('div'); typeBadge.className = 'mini-type'; typeBadge.textContent = (card.type || 'basic').toUpperCase(); tile.appendChild(typeBadge);
+      const content = document.createElement('div'); content.className = 'mini-content';
+      renderSafe(content, card.front || '');
+      tile.appendChild(content);
       if ((card.type || 'basic') === 'mcq') {
+        const mc = document.createElement('div'); mc.className = 'mini-choices';
         const answers = card.multi ? (card.answers || []) : (card.answer != null ? [card.answer] : []);
         const texts = (answers || []).map(i => (card.choices || [])[i]).filter(Boolean);
-        renderSafe(tdBack, texts.length ? texts.join(', ') : '');
+        texts.slice(0, 3).forEach(txt => { const d = document.createElement('div'); d.className = 'mini-choice'; renderSafe(d, txt); mc.appendChild(d); });
+        tile.appendChild(mc);
       } else {
-        renderSafe(tdBack, card.back);
+        // For basic, show a hint of the back
+        const back = document.createElement('div'); back.className = 'mini-choice'; renderSafe(back, card.back || ''); tile.appendChild(back);
       }
-      const tdActions = document.createElement('td'); tdActions.className = 'row-actions';
-      const edit = document.createElement('button'); edit.className = 'btn'; edit.textContent = 'Edit';
-      const del = document.createElement('button'); del.className = 'btn'; del.textContent = 'Delete';
+      const actions = document.createElement('div'); actions.className = 'actions';
+      const edit = document.createElement('button'); edit.className = 'icon-btn'; edit.setAttribute('title', 'Edit'); edit.setAttribute('aria-label', 'Edit'); edit.textContent = '✎';
+      const del = document.createElement('button'); del.className = 'icon-btn'; del.setAttribute('title', 'Delete'); del.setAttribute('aria-label', 'Delete'); del.textContent = '🗑️';
+      actions.appendChild(edit); actions.appendChild(del); tile.appendChild(actions);
       del.addEventListener('click', async () => {
         if (!confirm('Delete this card?')) return;
         await api.deleteCard(card.id);
         await refresh();
         if (window.setCardsVisible) window.setCardsVisible(true);
       });
-      edit.addEventListener('click', () => enterEditRow(tr, card));
-      tdActions.appendChild(edit);
-      tdActions.appendChild(del);
-      tr.appendChild(tdId); tr.appendChild(tdDeck); tr.appendChild(tdType); tr.appendChild(tdFront); tr.appendChild(tdBack); tr.appendChild(tdActions);
-      els.cardsTbody.appendChild(tr);
+      edit.addEventListener('click', () => enterEditTile(tile, card));
+      els.cardsList.appendChild(tile);
     });
 
     if (els.cardsPage) {
@@ -784,6 +787,63 @@
     if (shouldAutoAdvanceFromState()) startAutoAdvance(); else clearAutoAdvance();
     // Adjust card height for MCQ to fit content
     adjustCardHeight();
+  }
+
+  function enterEditTile(tile, card) {
+    tile.innerHTML = '';
+    tile.classList.add('mini-card');
+    const type = (card.type || 'basic');
+    const wrap = document.createElement('div'); wrap.className = 'mini-edit'; wrap.style.width = '100%';
+    const typeBadge = document.createElement('div'); typeBadge.className = 'mini-type'; typeBadge.textContent = type.toUpperCase(); wrap.appendChild(typeBadge);
+    const front = document.createElement('textarea'); front.value = card.front || ''; front.style.width = '100%'; front.rows = 4;
+    wrap.appendChild(front);
+    let back, choicesArea, multiChk, answerInput, answersInput, cardsChk;
+    if (type === 'basic') {
+      back = document.createElement('textarea'); back.value = card.back || ''; back.style.width = '100%'; back.rows = 4; wrap.appendChild(back);
+    } else {
+      // MCQ editors
+      cardsChk = document.createElement('input'); cardsChk.type = 'checkbox'; cardsChk.checked = !!card.choices_as_cards;
+      const cardsLbl = document.createElement('label'); cardsLbl.className = 'inline'; cardsLbl.appendChild(cardsChk); cardsLbl.appendChild(document.createTextNode(' Display choices as mini cards'));
+      wrap.appendChild(cardsLbl);
+      multiChk = document.createElement('input'); multiChk.type = 'checkbox'; multiChk.checked = !!card.multi;
+      const multiLbl = document.createElement('label'); multiLbl.className = 'inline'; multiLbl.appendChild(multiChk); multiLbl.appendChild(document.createTextNode(' Allow multiple answers'));
+      wrap.appendChild(multiLbl);
+      choicesArea = document.createElement('textarea'); choicesArea.style.width = '100%'; choicesArea.rows = 6; choicesArea.value = (card.choices || []).join('\n'); wrap.appendChild(choicesArea);
+      const singleWrap = document.createElement('div');
+      answerInput = document.createElement('input'); answerInput.type = 'number'; answerInput.min = '1'; answerInput.value = (card.answer != null ? (card.answer+1) : 1); answerInput.style.width = '100%';
+      singleWrap.appendChild(answerInput); singleWrap.style.display = multiChk.checked ? 'none' : '';
+      const multiWrap = document.createElement('div');
+      answersInput = document.createElement('input'); answersInput.type = 'text'; answersInput.placeholder = 'e.g. 1,3'; answersInput.value = (card.answers || []).map(i => i+1).join(','); answersInput.style.width = '100%';
+      multiWrap.appendChild(answersInput); multiWrap.style.display = multiChk.checked ? '' : 'none';
+      wrap.appendChild(singleWrap); wrap.appendChild(multiWrap);
+      multiChk.addEventListener('change', () => { singleWrap.style.display = multiChk.checked ? 'none' : ''; multiWrap.style.display = multiChk.checked ? '' : 'none'; });
+    }
+    const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.gap = '8px'; actions.style.marginTop = '8px';
+    const save = document.createElement('button'); save.className = 'btn btn-primary'; save.textContent = 'Save';
+    const cancel = document.createElement('button'); cancel.className = 'btn'; cancel.textContent = 'Cancel';
+    actions.appendChild(save); actions.appendChild(cancel); wrap.appendChild(actions);
+    tile.appendChild(wrap);
+    save.addEventListener('click', async () => {
+      const patch = {};
+      const nf = front.value.trim(); if (nf && nf !== (card.front || '')) patch.front = nf;
+      if (type === 'basic') {
+        const nb = (back.value || '').trim(); if (nb !== (card.back || '')) patch.back = nb;
+      } else {
+        const lines = (choicesArea.value || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        if (JSON.stringify(lines) !== JSON.stringify(card.choices || [])) patch.choices = lines;
+        const isMulti = !!multiChk.checked; patch.multi = isMulti;
+        if (cardsChk) patch.choices_as_cards = !!cardsChk.checked;
+        if (isMulti) {
+          const nums = (answersInput.value || '').split(/[^\d]+/).map(s => s.trim()).filter(Boolean).map(s => parseInt(s,10)-1);
+          const uniq = [...new Set(nums)];
+          patch.answers = uniq;
+        } else {
+          const idx = parseInt(answerInput.value, 10) - 1; patch.answer = isNaN(idx) ? null : idx;
+        }
+      }
+      try { await api.updateCard(card.id, patch); await refresh(); if (window.setCardsVisible) window.setCardsVisible(true); } catch(e){ alert('Failed to save: '+e); }
+    });
+    cancel.addEventListener('click', async () => { await refresh(); if (window.setCardsVisible) window.setCardsVisible(true); });
   }
 
   // For MCQ cards, let the card size to fit visible content
