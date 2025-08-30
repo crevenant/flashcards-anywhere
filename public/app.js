@@ -492,19 +492,34 @@
       const tile = document.createElement('div');
       tile.className = 'mini-card';
       const typeBadge = document.createElement('div'); typeBadge.className = 'mini-type'; typeBadge.textContent = (card.type || 'basic').toUpperCase(); tile.appendChild(typeBadge);
+      const body = document.createElement('div'); body.className = 'mini-scroll';
       const content = document.createElement('div'); content.className = 'mini-content';
       renderSafe(content, card.front || '');
-      tile.appendChild(content);
+      body.appendChild(content);
       if ((card.type || 'basic') === 'mcq') {
-        const mc = document.createElement('div'); mc.className = 'mini-choices';
-        const answers = card.multi ? (card.answers || []) : (card.answer != null ? [card.answer] : []);
-        const texts = (answers || []).map(i => (card.choices || [])[i]).filter(Boolean);
-        texts.forEach(txt => { const d = document.createElement('div'); d.className = 'mini-choice'; renderSafe(d, txt); mc.appendChild(d); });
-        tile.appendChild(mc);
+        const choices = card.choices || [];
+        // Answers section
+        const idxs = card.multi
+          ? (card.answers || [])
+          : (card.answer != null ? [card.answer] : (Array.isArray(card.answers) ? card.answers : []));
+        const answersWrap = document.createElement('div');
+        const ansLabel = document.createElement('div'); ansLabel.className = 'mini-label'; ansLabel.textContent = 'Answers'; answersWrap.appendChild(ansLabel);
+        const mcAns = document.createElement('div'); mcAns.className = 'mini-choices';
+        (idxs || []).forEach(i => { const txt = choices[i]; if (!txt) return; const d = document.createElement('div'); d.className = 'mini-choice correct'; renderSafe(d, txt); mcAns.appendChild(d); });
+        answersWrap.appendChild(mcAns);
+        body.appendChild(answersWrap);
+        // Choices section
+        const chWrap = document.createElement('div');
+        const chLabel = document.createElement('div'); chLabel.className = 'mini-label'; chLabel.textContent = 'Choices'; chWrap.appendChild(chLabel);
+        const mcChoices = document.createElement('div'); mcChoices.className = 'mini-choices';
+        choices.forEach((txt, i) => { const d = document.createElement('div'); d.className = 'mini-choice'; if ((idxs || []).includes(i)) d.classList.add('correct'); renderSafe(d, txt); mcChoices.appendChild(d); });
+        chWrap.appendChild(mcChoices);
+        body.appendChild(chWrap);
       } else {
         // For basic, show a hint of the back
-        const back = document.createElement('div'); back.className = 'mini-choice'; renderSafe(back, card.back || ''); tile.appendChild(back);
+        const back = document.createElement('div'); back.className = 'mini-choice'; renderSafe(back, card.back || ''); body.appendChild(back);
       }
+      tile.appendChild(body);
       const actions = document.createElement('div'); actions.className = 'actions';
       const edit = document.createElement('button'); edit.className = 'icon-btn'; edit.setAttribute('title', 'Edit'); edit.setAttribute('aria-label', 'Edit'); edit.textContent = '✎';
       const del = document.createElement('button'); del.className = 'icon-btn'; del.setAttribute('title', 'Delete'); del.setAttribute('aria-label', 'Delete'); del.textContent = '🗑️';
