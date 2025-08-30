@@ -61,6 +61,8 @@ def init_db():
             cur.execute("ALTER TABLE cards ADD COLUMN multi INTEGER NOT NULL DEFAULT 0")
         if 'answers' not in cols:
             cur.execute("ALTER TABLE cards ADD COLUMN answers TEXT")
+        if 'choices_as_cards' not in cols:
+            cur.execute("ALTER TABLE cards ADD COLUMN choices_as_cards INTEGER NOT NULL DEFAULT 0")
 
         # Seed with a default deck and a few cards if empty
         cur.execute("SELECT COUNT(*) FROM decks;")
@@ -111,6 +113,7 @@ def row_to_card(row):
         "answer": (row[8] if len(row) > 8 else None),
         "multi": (bool(row[9]) if len(row) > 9 else False),
         "answers": (json.loads(row[10]) if len(row) > 10 and row[10] else None),
+        "choices_as_cards": (bool(row[11]) if len(row) > 11 else False),
     }
 
 
@@ -175,7 +178,7 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
             try:
                 cur = conn.cursor()
                 base_select = (
-                    "SELECT id, deck_id, front, back, created_at, updated_at, type, choices, answer, multi, answers FROM cards"
+                    "SELECT id, deck_id, front, back, created_at, updated_at, type, choices, answer, multi, answers, choices_as_cards FROM cards"
                 )
                 if deck:
                     cur.execute(
@@ -218,6 +221,7 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
             answer_idx = None
             answers_json = None
             multi_flag = 0
+            choices_as_cards = 1 if bool(payload.get('choices_as_cards')) else 0
             if card_type == 'mcq':
                 choices = payload.get('choices')
                 if not isinstance(choices, list) or len(choices) < 2 or not all(isinstance(c, str) and c.strip() for c in choices):
@@ -270,8 +274,8 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
                     deck_id = row[0]
                 if card_type == 'mcq':
                     cur.execute(
-                        "INSERT INTO cards (deck_id, front, back, type, choices, answer, multi, answers) VALUES (?, ?, '', 'mcq', ?, ?, ?, ?)",
-                        (deck_id, front, choices_json, answer_idx, multi_flag, answers_json),
+                        "INSERT INTO cards (deck_id, front, back, type, choices, answer, multi, answers, choices_as_cards) VALUES (?, ?, '', 'mcq', ?, ?, ?, ?, ?)",
+                        (deck_id, front, choices_json, answer_idx, multi_flag, answers_json, choices_as_cards),
                     )
                 else:
                     cur.execute(
@@ -281,7 +285,7 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
                 card_id = cur.lastrowid
                 conn.commit()
                 cur.execute(
-                    "SELECT id, deck_id, front, back, created_at, updated_at, type, choices, answer, multi, answers FROM cards WHERE id = ?",
+                    "SELECT id, deck_id, front, back, created_at, updated_at, type, choices, answer, multi, answers, choices_as_cards FROM cards WHERE id = ?",
                     (card_id,),
                 )
                 card = row_to_card(cur.fetchone())
@@ -489,7 +493,7 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
                 return
             conn.commit()
             cur.execute(
-                "SELECT id, deck_id, front, back, created_at, updated_at, type, choices, answer, multi, answers FROM cards WHERE id = ?",
+                "SELECT id, deck_id, front, back, created_at, updated_at, type, choices, answer, multi, answers, choices_as_cards FROM cards WHERE id = ?",
                 (card_id,),
             )
             card = row_to_card(cur.fetchone())
@@ -553,3 +557,13 @@ def run():
 
 if __name__ == '__main__':
     run()
+        # toggle choices_as_cards (boolean)
+        if 'choices_as_cards' in payload:
+            cav = payload['choices_as_cards']
+            if isinstance(cav, bool):
+                fields.append('choices_as_cards = ?')
+                values.append(1 if cav else 0)
+            else:
+                self._set_json_headers(HTTPStatus.BAD_REQUEST)
+                self.wfile.write(json.dumps({"error": "'choices_as_cards' must be a boolean"}).encode('utf-8'))
+                return

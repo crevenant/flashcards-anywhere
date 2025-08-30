@@ -76,6 +76,7 @@
     typeInput: document.getElementById('type-input'),
     mcqFields: document.getElementById('mcq-fields'),
     multiInput: document.getElementById('multi-input'),
+    choicesCardsInput: document.getElementById('choices-cards-input'),
     choicesInput: document.getElementById('choices-input'),
     answerInput: document.getElementById('answer-input'),
     answersInput: document.getElementById('answers-input'),
@@ -581,8 +582,9 @@
         els.previewBackWrap.hidden = true;
         els.previewChoicesWrap.hidden = false;
         els.previewChoices.innerHTML = '';
+        els.previewChoices.classList.toggle('cards', !!(cardsChk && cardsChk.checked));
         const lines = (choicesArea.value || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-        lines.forEach(txt => { const btn = document.createElement('div'); btn.className = 'choice'; renderSafe(btn, txt); els.previewChoices.appendChild(btn); });
+        lines.forEach(txt => { const btn = document.createElement('div'); btn.className = 'choice'; if (cardsChk && cardsChk.checked) btn.classList.add('card-choice'); renderSafe(btn, txt); els.previewChoices.appendChild(btn); });
       }
     };
     // Initialize and bind live preview updates
@@ -604,6 +606,7 @@
         if (JSON.stringify(lines) !== JSON.stringify(card.choices || [])) patch.choices = lines;
         const isMulti = !!multiChk.checked;
         patch.multi = isMulti;
+        if (typeof cardsChk !== 'undefined' && cardsChk) patch.choices_as_cards = !!cardsChk.checked;
         if (isMulti) {
           const nums = (answersInput.value || '').split(/[^\d]+/).map(s => s.trim()).filter(Boolean).map(s => parseInt(s,10)-1);
           const uniq = [...new Set(nums)];
@@ -676,12 +679,14 @@
       // Build choices
       els.mcqChoices.innerHTML = '';
       const order = state.choiceOrder || (c.choices || []).map((_, i) => i);
+      // Toggle mini-card layout for choices
+      els.mcqChoices.classList.toggle('cards', !!c.choices_as_cards);
       order.forEach((origIdx, i) => {
         const ch = c.choices[origIdx];
         const btn = document.createElement('button');
         btn.type = 'button';
         renderSafe(btn, ch);
-        btn.className = 'choice';
+        btn.className = 'choice' + (c.choices_as_cards ? ' card-choice' : '');
         if (c.multi) {
           if (!state.multiChecked) {
             btn.addEventListener('click', () => toggleMultiChoice(i));
@@ -1140,6 +1145,7 @@
     if (isMcq) {
       // Reset MCQ mode controls default
       els.multiInput.checked = false;
+      if (els.choicesCardsInput) els.choicesCardsInput.checked = false;
       els.singleAnswerRow.hidden = false;
       els.multiAnswerRow.hidden = true;
     }
@@ -1161,16 +1167,17 @@
     if (type === 'mcq') {
       const lines = els.choicesInput.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       const multi = els.multiInput.checked;
+      const choicesAsCards = !!(els.choicesCardsInput && els.choicesCardsInput.checked);
       if (!front || lines.length < 2) return;
       if (multi) {
         const nums = els.answersInput.value.split(/[^\d]+/).map(s => s.trim()).filter(Boolean).map(s => parseInt(s, 10) - 1);
         const uniq = [...new Set(nums)].filter(n => n >= 0 && n < lines.length);
         if (uniq.length === 0) return;
-        await api.addCard({ type: 'mcq', front, choices: lines, multi: true, answers: uniq, deck });
+        await api.addCard({ type: 'mcq', front, choices: lines, multi: true, answers: uniq, deck, choices_as_cards: choicesAsCards });
       } else {
         const idx = parseInt(els.answerInput.value, 10) - 1;
         if (!(idx >= 0 && idx < lines.length)) return;
-        await api.addCard({ type: 'mcq', front, choices: lines, multi: false, answer: idx, deck });
+        await api.addCard({ type: 'mcq', front, choices: lines, multi: false, answer: idx, deck, choices_as_cards: choicesAsCards });
       }
     } else {
       const back = els.backInput.value.trim();
@@ -1183,6 +1190,7 @@
     els.answerInput.value = '1';
     els.answersInput.value = '';
     els.multiInput.checked = false;
+    if (els.choicesCardsInput) els.choicesCardsInput.checked = false;
     els.singleAnswerRow.hidden = false;
     els.multiAnswerRow.hidden = true;
     await refresh();
