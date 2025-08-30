@@ -37,6 +37,9 @@ header h1 {
 /* Extra affordance for the timer toggle */
 #timer-btn { position: relative; }
 #timer-btn.active::after { content: 'ON'; position: absolute; top: -8px; right: -6px; font-size: 10px; line-height: 1; padding: 2px 6px; border-radius: 999px; background: var(--accent); color: #0b1225; border: 1px solid #1f2937; }
+/* Auto-advance toggle badge mirrors timer */
+#auto-adv-btn { position: relative; }
+#auto-adv-btn.active::after { content: 'ON'; position: absolute; top: -8px; right: -6px; font-size: 10px; line-height: 1; padding: 2px 6px; border-radius: 999px; background: var(--accent); color: #0b1225; border: 1px solid #1f2937; }
 /* Icon sizing for header buttons */
 .controls .btn .icon { width: 18px; height: 18px; display: inline-block; vertical-align: -2px; }
 select, button, input, textarea {
