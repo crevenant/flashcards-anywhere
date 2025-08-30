@@ -19,14 +19,33 @@
       });
       if (!r.ok) throw new Error('Failed to add card');
       return await r.json();
+    },
+    async deleteCard(id) {
+      const r = await fetch(`/api/cards/${id}`, { method: 'DELETE' });
+      if (r.status !== 204) throw new Error('Failed to delete card');
+    },
+    async renameDeck(id, name) {
+      const r = await fetch(`/api/decks/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      if (!r.ok) throw new Error('Failed to rename deck');
+      return await r.json();
+    },
+    async deleteDeck(id) {
+      const r = await fetch(`/api/decks/${id}`, { method: 'DELETE' });
+      if (r.status !== 204) throw new Error('Failed to delete deck');
+    },
+    async createDeck(name) {
+      const r = await fetch('/api/decks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      if (!r.ok) throw new Error('Failed to create deck');
+      return await r.json();
     }
   };
 
   const els = {
     deckSelect: document.getElementById('deck-select'),
     shuffleBtn: document.getElementById('shuffle-btn'),
-    htmlToggle: document.getElementById('html-toggle'),
     toggleAddBtn: document.getElementById('toggle-add-btn'),
+    toggleDecksBtn: document.getElementById('toggle-decks-btn'),
+    toggleCardsBtn: document.getElementById('toggle-cards-btn'),
     card: document.getElementById('card'),
     front: document.getElementById('card-front'),
     frontText: document.getElementById('front-text'),
@@ -53,6 +72,12 @@
     multiAnswerRow: document.getElementById('multi-answer-row'),
     clearBtn: document.getElementById('clear-btn'),
     adderSection: document.getElementById('adder-section'),
+    decksSection: document.getElementById('decks-section'),
+    decksList: document.getElementById('decks-list'),
+    deckAddForm: document.getElementById('deck-add-form'),
+    deckNewInput: document.getElementById('deck-new-input'),
+    cardsSection: document.getElementById('cards-section'),
+    cardsTbody: document.getElementById('cards-tbody'),
   };
 
   let state = {
@@ -65,10 +90,12 @@
     resetTimer: null,
     multiSelected: new Set(),
     multiChecked: false,
-    allowHTML: false,
     showAdder: false,
+    showDecks: false,
+    showCards: false,
     lastCardId: null,
     choiceOrder: null, // array mapping displayed index -> original index for current MCQ card
+    deckMap: {},
   };
   const DELAY_MS = 1200; // delay before reset/advance
   const FLIP_MS = 500;   // CSS flip transition duration (keep in sync with styles)
@@ -99,8 +126,7 @@
   }
   function renderSafe(el, text) {
     el.innerHTML = '';
-    if (state.allowHTML) el.appendChild(sanitizeHtmlToFragment(String(text)));
-    else el.textContent = String(text);
+    el.appendChild(sanitizeHtmlToFragment(String(text)));
   }
 
   function renderDecks(decks) {
@@ -116,6 +142,92 @@
       els.deckSelect.appendChild(opt);
     });
     els.deckSelect.value = state.deckName;
+    // Build id->name map
+    state.deckMap = {};
+    decks.forEach(d => { state.deckMap[d.id] = d.name; });
+    if (els.decksList) {
+      els.decksList.innerHTML = '';
+      decks.forEach(d => {
+        const row = document.createElement('div');
+        row.className = 'deck-row';
+        const name = document.createElement('div');
+        name.className = 'deck-name';
+        name.textContent = d.name;
+        const actions = document.createElement('div');
+        actions.className = 'deck-actions';
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'btn';
+        renameBtn.textContent = 'Rename';
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn';
+        deleteBtn.textContent = 'Delete';
+        actions.appendChild(renameBtn);
+        actions.appendChild(deleteBtn);
+        row.appendChild(name);
+        row.appendChild(actions);
+        renameBtn.addEventListener('click', () => beginRename(row, d));
+        deleteBtn.addEventListener('click', async () => {
+          if (!confirm(`Delete deck "${d.name}"? Cards will be left unassigned.`)) return;
+          await api.deleteDeck(d.id);
+          if (state.deckName === d.name) state.deckName = '';
+          await refresh();
+          if (window.setDecksVisible) window.setDecksVisible(true);
+        });
+        els.decksList.appendChild(row);
+      });
+    }
+  }
+
+  function renderCardsTable() {
+    if (!els.cardsTbody) return;
+    els.cardsTbody.innerHTML = '';
+    state.cards.forEach(card => {
+      const tr = document.createElement('tr');
+      const tdId = document.createElement('td'); tdId.textContent = card.id;
+      const tdDeck = document.createElement('td'); tdDeck.textContent = state.deckMap[card.deck_id] || '';
+      const tdType = document.createElement('td'); tdType.className = 'cell-type'; tdType.textContent = (card.type || 'basic').toUpperCase();
+      const tdFront = document.createElement('td'); tdFront.className = 'cell-front'; renderSafe(tdFront, card.front);
+      const tdBack = document.createElement('td'); tdBack.className = 'cell-back';
+      if ((card.type || 'basic') === 'mcq') {
+        const answers = card.multi ? (card.answers || []) : (card.answer != null ? [card.answer] : []);
+        const texts = (answers || []).map(i => (card.choices || [])[i]).filter(Boolean);
+        renderSafe(tdBack, texts.length ? texts.join(', ') : '');
+      } else {
+        renderSafe(tdBack, card.back);
+      }
+      const tdActions = document.createElement('td'); tdActions.className = 'row-actions';
+      const del = document.createElement('button'); del.className = 'btn'; del.textContent = 'Delete';
+      del.addEventListener('click', async () => {
+        if (!confirm('Delete this card?')) return;
+        await api.deleteCard(card.id);
+        await refresh();
+        if (window.setCardsVisible) window.setCardsVisible(true);
+      });
+      tdActions.appendChild(del);
+      tr.appendChild(tdId); tr.appendChild(tdDeck); tr.appendChild(tdType); tr.appendChild(tdFront); tr.appendChild(tdBack); tr.appendChild(tdActions);
+      els.cardsTbody.appendChild(tr);
+    });
+  }
+
+  function beginRename(row, deck) {
+    row.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'deck-rename';
+    const input = document.createElement('input');
+    input.type = 'text'; input.value = deck.name; input.className = 'deck-name';
+    const save = document.createElement('button'); save.className = 'btn btn-primary'; save.textContent = 'Save';
+    const cancel = document.createElement('button'); cancel.className = 'btn'; cancel.textContent = 'Cancel';
+    wrap.appendChild(input); wrap.appendChild(save); wrap.appendChild(cancel);
+    row.appendChild(wrap);
+    save.addEventListener('click', async () => {
+      const name = input.value.trim(); if (!name) return;
+      await api.renameDeck(deck.id, name);
+      if (state.deckName === deck.name) state.deckName = name;
+      await refresh();
+      if (window.setDecksVisible) window.setDecksVisible(true);
+    });
+    cancel.addEventListener('click', async () => { await refresh(); if (window.setDecksVisible) window.setDecksVisible(true); });
+    input.focus(); input.select();
   }
 
   function renderCard() {
@@ -421,6 +533,7 @@
     state.multiSelected.clear(); state.multiChecked = false;
     clearTimer();
     renderCard();
+    renderCardsTable();
   }
 
   // Events
@@ -484,6 +597,45 @@
     // restore persisted preference
     try { state.showAdder = localStorage.getItem('showAdder') === '1'; } catch {}
     setAdderVisible(state.showAdder);
+  }
+  if (els.toggleDecksBtn) {
+    const setDecksVisible = (show) => {
+      state.showDecks = !!show;
+      if (els.decksSection) els.decksSection.hidden = !state.showDecks;
+      els.toggleDecksBtn.classList.toggle('active', state.showDecks);
+      els.toggleDecksBtn.setAttribute('aria-pressed', state.showDecks ? 'true' : 'false');
+      if (state.showDecks) { /* refresh list */ refresh(); }
+      try { localStorage.setItem('showDecks', state.showDecks ? '1' : '0'); } catch {}
+    };
+    els.toggleDecksBtn.addEventListener('click', () => setDecksVisible(!state.showDecks));
+    try { state.showDecks = localStorage.getItem('showDecks') === '1'; } catch {}
+    setDecksVisible(state.showDecks);
+    window.setDecksVisible = setDecksVisible;
+  }
+  if (els.toggleCardsBtn) {
+    const setCardsVisible = (show) => {
+      state.showCards = !!show;
+      if (els.cardsSection) els.cardsSection.hidden = !state.showCards;
+      els.toggleCardsBtn.classList.toggle('active', state.showCards);
+      els.toggleCardsBtn.setAttribute('aria-pressed', state.showCards ? 'true' : 'false');
+      if (state.showCards) renderCardsTable();
+      try { localStorage.setItem('showCards', state.showCards ? '1' : '0'); } catch {}
+    };
+    els.toggleCardsBtn.addEventListener('click', () => setCardsVisible(!state.showCards));
+    try { state.showCards = localStorage.getItem('showCards') === '1'; } catch {}
+    setCardsVisible(state.showCards);
+    window.setCardsVisible = setCardsVisible;
+  }
+  // (Deck management dropdown removed)
+  if (els.deckAddForm) {
+    els.deckAddForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = els.deckNewInput.value.trim(); if (!name) return;
+      await api.createDeck(name);
+      els.deckNewInput.value = '';
+      await refresh();
+      if (window.setDecksVisible) window.setDecksVisible(true);
+    });
   }
   els.typeInput.addEventListener('change', () => {
     const type = els.typeInput.value;
@@ -555,17 +707,7 @@
   });
 
   // Init
-  try {
-    state.allowHTML = localStorage.getItem('allowHTML') === '1';
-    if (els.htmlToggle) els.htmlToggle.checked = state.allowHTML;
-  } catch {}
-  if (els.htmlToggle) {
-    els.htmlToggle.addEventListener('change', () => {
-      state.allowHTML = !!els.htmlToggle.checked;
-      try { localStorage.setItem('allowHTML', state.allowHTML ? '1' : '0'); } catch {}
-      renderCard();
-    });
-  }
+  // Always allow limited, safe HTML rendering
   refresh().catch(err => {
     console.error(err);
     alert('Failed to load data. See console for details.');

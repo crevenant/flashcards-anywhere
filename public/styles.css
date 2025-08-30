@@ -163,6 +163,22 @@ main {
 .btn-primary { background: linear-gradient(180deg, #2563eb, #1d4ed8); border-color: #1d4ed8; }
 .btn-primary:hover { filter: brightness(1.05); }
 
+/* Decks management */
+.decks-list { display: grid; gap: 8px; margin-top: 8px; }
+.deck-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }
+.deck-name { padding: 8px 10px; border: 1px solid #1f2937; border-radius: 8px; background: #0b1225; }
+.deck-actions { display: inline-flex; gap: 6px; }
+.deck-rename { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
+
+/* Card browser table */
+.table-wrap { overflow: auto; border: 1px solid #1f2937; border-radius: 10px; }
+.card-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.card-table thead th { position: sticky; top: 0; background: #0b1225; color: #cbd5e1; text-align: left; padding: 10px; border-bottom: 1px solid #1f2937; }
+.card-table tbody td { padding: 10px; border-top: 1px solid #1f2937; vertical-align: top; }
+.cell-front, .cell-back { max-width: 320px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; white-space: normal; }
+.cell-type { white-space: nowrap; }
+.row-actions { display: inline-flex; gap: 6px; }
+
 footer { text-align: center; color: var(--muted); padding: 12px; }
 
 /* Ruby (furigana) support */

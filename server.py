@@ -320,6 +320,35 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
     def handle_api_put(self):
         m = re.match(r"^/api/cards/(\d+)$", self.path)
         if not m:
+            # Deck rename
+            md = re.match(r"^/api/decks/(\d+)$", self.path)
+            if md:
+                deck_id = int(md.group(1))
+                payload = self._read_json()
+                name = (payload.get('name') or '').strip()
+                if not name:
+                    self._set_json_headers(HTTPStatus.BAD_REQUEST)
+                    self.wfile.write(json.dumps({"error": "'name' is required"}).encode('utf-8'))
+                    return
+                conn = get_connection()
+                try:
+                    cur = conn.cursor()
+                    try:
+                        cur.execute("UPDATE decks SET name = ? WHERE id = ?", (name, deck_id))
+                    except sqlite3.IntegrityError:
+                        self._set_json_headers(HTTPStatus.CONFLICT)
+                        self.wfile.write(json.dumps({"error": "Deck already exists"}).encode('utf-8'))
+                        return
+                    if cur.rowcount == 0:
+                        self._set_json_headers(HTTPStatus.NOT_FOUND)
+                        self.wfile.write(json.dumps({"error": "Deck not found"}).encode('utf-8'))
+                        return
+                    conn.commit()
+                    self._set_json_headers(HTTPStatus.OK)
+                    self.wfile.write(json.dumps({"id": deck_id, "name": name}).encode('utf-8'))
+                finally:
+                    conn.close()
+                return
             self._set_json_headers(HTTPStatus.NOT_FOUND)
             self.wfile.write(json.dumps({"error": "Not found"}).encode('utf-8'))
             return
@@ -471,23 +500,39 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
 
     def handle_api_delete(self):
         m = re.match(r"^/api/cards/(\d+)$", self.path)
-        if not m:
-            self._set_json_headers(HTTPStatus.NOT_FOUND)
-            self.wfile.write(json.dumps({"error": "Not found"}).encode('utf-8'))
+        if m:
+            card_id = int(m.group(1))
+            conn = get_connection()
+            try:
+                cur = conn.cursor()
+                cur.execute("DELETE FROM cards WHERE id = ?", (card_id,))
+                if cur.rowcount == 0:
+                    self._set_json_headers(HTTPStatus.NOT_FOUND)
+                    self.wfile.write(json.dumps({"error": "Card not found"}).encode('utf-8'))
+                    return
+                conn.commit()
+                self._set_json_headers(HTTPStatus.NO_CONTENT)
+            finally:
+                conn.close()
             return
-        card_id = int(m.group(1))
-        conn = get_connection()
-        try:
-            cur = conn.cursor()
-            cur.execute("DELETE FROM cards WHERE id = ?", (card_id,))
-            if cur.rowcount == 0:
-                self._set_json_headers(HTTPStatus.NOT_FOUND)
-                self.wfile.write(json.dumps({"error": "Card not found"}).encode('utf-8'))
-                return
-            conn.commit()
-            self._set_json_headers(HTTPStatus.NO_CONTENT)
-        finally:
-            conn.close()
+        md = re.match(r"^/api/decks/(\d+)$", self.path)
+        if md:
+            deck_id = int(md.group(1))
+            conn = get_connection()
+            try:
+                cur = conn.cursor()
+                cur.execute("DELETE FROM decks WHERE id = ?", (deck_id,))
+                if cur.rowcount == 0:
+                    self._set_json_headers(HTTPStatus.NOT_FOUND)
+                    self.wfile.write(json.dumps({"error": "Deck not found"}).encode('utf-8'))
+                    return
+                conn.commit()
+                self._set_json_headers(HTTPStatus.NO_CONTENT)
+            finally:
+                conn.close()
+            return
+        self._set_json_headers(HTTPStatus.NOT_FOUND)
+        self.wfile.write(json.dumps({"error": "Not found"}).encode('utf-8'))
 
 
 def run():

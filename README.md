@@ -35,9 +35,9 @@ Notes
 - To change port, set `PORT` env var before running (e.g., `PORT=3000`).
 - To change DB location, set `DB_PATH` to a writable path. By default the server uses a temp folder in restricted environments.
 
-HTML Rendering (Optional)
-------------------------
-- Toggle "Allow HTML" in the header to render card text as limited, safe HTML (e.g., Japanese furigana with `<ruby>`/`<rt>`).
+HTML Rendering
+--------------
+- Card text renders as limited, safe HTML (e.g., Japanese furigana with `<ruby>`/`<rt>`).
 - Allowed tags: `b, strong, i, em, u, s, br, p, ul, ol, li, code, pre, ruby, rt, rb, rp, span`.
 - All attributes are stripped; scripts, images, links and event handlers are not allowed.
 

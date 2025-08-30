@@ -16,9 +16,9 @@
         </label>
         <button id="shuffle-btn" class="btn" title="Shuffle cards">Shuffle</button>
         <button id="toggle-add-btn" class="btn" aria-pressed="false" title="Show/Hide Add Card">Add Card</button>
-        <label title="Render card text as limited, safe HTML">
-          <input id="html-toggle" type="checkbox" /> Allow HTML
-        </label>
+        <button id="toggle-decks-btn" class="btn" aria-pressed="false" title="Show/Hide Decks">Decks</button>
+        <button id="toggle-cards-btn" class="btn" aria-pressed="false" title="Show/Hide Card Browser">Cards</button>
+        
       </div>
     </header>
 
@@ -105,6 +105,45 @@ Option C"></textarea>
             <button type="button" id="clear-btn" class="btn">Clear</button>
           </div>
         </form>
+      </section>
+
+      <section id="decks-section" class="adder" hidden>
+        <div class="adder-header">
+          <h2>Decks</h2>
+          <p class="muted">Create, rename, or delete decks.</p>
+        </div>
+        <form id="deck-add-form" class="form-inline">
+          <label>
+            New deck name
+            <input id="deck-new-input" type="text" placeholder="e.g., JLPT N5" />
+          </label>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Add Deck</button>
+          </div>
+        </form>
+        <div id="decks-list" class="decks-list"></div>
+      </section>
+
+      <section id="cards-section" class="adder" hidden>
+        <div class="adder-header">
+          <h2>Cards</h2>
+          <p class="muted">Browse, filter by deck, and delete cards.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="card-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Deck</th>
+                <th>Type</th>
+                <th>Front</th>
+                <th>Back / Answers</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="cards-tbody"></tbody>
+          </table>
+        </div>
       </section>
     </main>
 
