@@ -134,6 +134,8 @@
     timerHold: false,
     timeoutReveal: false,
     autoAdvanceTimer: null,
+    autoAdvanceStart: null,
+    autoAdvanceRAF: null,
   };
   
   function clearAutoAdvance() {
@@ -141,6 +143,13 @@
       clearTimeout(state.autoAdvanceTimer);
       state.autoAdvanceTimer = null;
     }
+    if (state.autoAdvanceRAF) {
+      cancelAnimationFrame(state.autoAdvanceRAF);
+      state.autoAdvanceRAF = null;
+    }
+    state.autoAdvanceStart = null;
+    const p = document.getElementById('auto-adv-progress');
+    if (p && p.parentElement) p.parentElement.removeChild(p);
   }
 
   function clearCardTimer() {
@@ -222,6 +231,42 @@
       if (els.viewerSection && els.viewerSection.hidden) return;
       next();
     }, state.autoAdvanceDelayMs);
+    // Show progress bar in result panel (MCQ only) if visible
+    ensureAutoAdvProgressUI();
+    state.autoAdvanceStart = performance.now();
+    const delay = state.autoAdvanceDelayMs;
+    const tick = (now) => {
+      const el = document.getElementById('auto-adv-progress-bar');
+      if (!el) { state.autoAdvanceRAF = null; return; }
+      const elapsed = now - (state.autoAdvanceStart || now);
+      const pct = Math.max(0, Math.min(1, elapsed / delay));
+      el.style.width = (pct * 100).toFixed(2) + '%';
+      if (pct < 1) {
+        state.autoAdvanceRAF = requestAnimationFrame(tick);
+      } else {
+        state.autoAdvanceRAF = null;
+      }
+    };
+    state.autoAdvanceRAF = requestAnimationFrame(tick);
+  }
+
+  function ensureAutoAdvProgressUI() {
+    if (!els.mcqResult || els.mcqResult.hidden) return null;
+    let wrap = document.getElementById('auto-adv-progress');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = 'auto-adv-progress';
+      wrap.className = 'auto-adv-progress';
+      const bar = document.createElement('div');
+      bar.id = 'auto-adv-progress-bar';
+      bar.className = 'auto-adv-progress-bar';
+      wrap.appendChild(bar);
+      els.mcqResult.appendChild(wrap);
+    } else {
+      const bar = document.getElementById('auto-adv-progress-bar');
+      if (bar) bar.style.width = '0%';
+    }
+    return wrap;
   }
 
   function shouldAutoAdvanceFromState() {
