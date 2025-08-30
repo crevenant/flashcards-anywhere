@@ -124,6 +124,8 @@ main {
 .choices.cards { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
 .choice { text-align: left; width: 100%; display: block; white-space: pre-wrap; }
 .choice.card-choice { text-align: center; padding: 16px; font-size: 32px; border-radius: 12px; min-height: 72px; }
+/* Use slightly smaller mini-cards inside the result panel */
+.result .choice.card-choice { padding: 12px; font-size: 24px; min-height: 60px; }
 .choice.selected { border-color: var(--accent); color: var(--text); background: rgba(96,165,250,0.08); }
 .choice.correct { border-color: #16a34a; color: #16a34a; }
 .choice.wrong { border-color: #ef4444; color: #ef4444; }

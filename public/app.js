@@ -941,10 +941,13 @@
       label.textContent = 'Correct answer' + (correctTexts.length > 1 ? 's' : '');
       els.mcqResult.appendChild(label);
       const list = document.createElement('div');
-      list.className = 'correct-list';
+      // When choices are displayed as mini cards, mirror that in results
+      const c = state.cards[state.idx];
+      const asCards = !!(c && (c.type || 'basic') === 'mcq' && c.choices_as_cards);
+      list.className = 'correct-list choices' + (asCards ? ' cards' : '');
       correctTexts.forEach(text => {
         const div = document.createElement('div');
-        div.className = 'choice correct-item correct';
+        div.className = 'choice correct-item correct' + (asCards ? ' card-choice' : '');
         renderSafe(div, text);
         list.appendChild(div);
       });
