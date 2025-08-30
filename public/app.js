@@ -657,7 +657,11 @@
         renderSafe(btn, ch);
         btn.className = 'choice';
         if (c.multi) {
-          btn.addEventListener('click', () => toggleMultiChoice(i));
+          if (!state.multiChecked) {
+            btn.addEventListener('click', () => toggleMultiChoice(i));
+          } else {
+            btn.disabled = true;
+          }
           if (state.multiSelected.has(i)) btn.classList.add('selected');
           if (state.multiChecked) {
             const isAnswer = (c.answers || []).includes(origIdx);
@@ -665,7 +669,11 @@
             if (!isAnswer && state.multiSelected.has(i)) btn.classList.add('wrong');
           }
         } else {
-          btn.addEventListener('click', () => selectChoice(i));
+          if (state.selected == null) {
+            btn.addEventListener('click', () => selectChoice(i));
+          } else {
+            btn.disabled = true;
+          }
           if (state.selected === i) {
             btn.classList.add(state.correct ? 'correct' : 'wrong');
           }
@@ -676,6 +684,7 @@
       els.mcqChoices.hidden = false;
       if (c.multi) {
         els.mcqCheck.hidden = false;
+        els.mcqCheck.disabled = !!state.multiChecked;
         if (state.multiChecked) {
           if (state.timeoutReveal) {
             setResult("Time's up.", (c.answers || []).map(i => c.choices[i]));
@@ -854,6 +863,8 @@
   function selectChoice(i) {
     const c = state.cards[state.idx];
     if ((c.type || 'basic') !== 'mcq') return;
+    // For single-answer MCQ, ignore further selections once chosen
+    if (state.selected != null) return;
     state.timeoutReveal = false;
     state.selected = i;
     const order = state.choiceOrder || (c.choices || []).map((_, k) => k);
