@@ -842,40 +842,28 @@
   }
 
   // Events
-  els.card.addEventListener('click', (e) => {
+  els.card.addEventListener('click', () => {
     const c = state.cards[state.idx];
-    if (!c) return;
-    const type = (c.type || 'basic');
-    // If answer/result is showing, clicking advances to the next card
-    if ((type === 'basic' && state.showBack) || (type === 'mcq' && (state.multiChecked || state.selected !== null))) {
-      next();
-      return;
-    }
-    if (type === 'basic') {
+    if (c && (c.type || 'basic') === 'basic') {
       state.timeoutReveal = false;
       state.showBack = !state.showBack;
       renderCard();
       clearTimer();
       clearCardTimer();
+      // If showing back, keep it until user navigates; no auto-advance
     }
   });
   els.card.addEventListener('keydown', (e) => {
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
       const c = state.cards[state.idx];
-      if (!c) return;
-      const type = (c.type || 'basic');
-      // If answer/result is showing, space/enter advances
-      if ((type === 'basic' && state.showBack) || (type === 'mcq' && (state.multiChecked || state.selected !== null))) {
-        next();
-        return;
-      }
-      if (type === 'basic') {
+      if (c && (c.type || 'basic') === 'basic') {
         state.timeoutReveal = false;
         state.showBack = !state.showBack;
         renderCard();
         clearTimer();
         clearCardTimer();
+        // If showing back, keep it until user navigates; no auto-advance
       }
     } else if (e.key === 'ArrowRight') {
       next();
