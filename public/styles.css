@@ -63,6 +63,17 @@ main {
   outline: none;
 }
 .card.instant .face { transition: none !important; }
+/* Smooth next-card transition (used after flip returns to front) */
+.card.advance-out { animation: cardOut 240ms ease forwards; }
+.card.advance-in { animation: cardIn 260ms ease forwards; }
+@keyframes cardOut {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+@keyframes cardIn {
+  0% { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
 .face {
   position: absolute;
   inset: 0;

@@ -193,8 +193,15 @@
   }
 
   function next() {
+    // Use animated transition for moving to the next card
+    nextAnimated();
+  }
+
+  // Animated next transition: fade/slide out, swap, then fade/slide in
+  function nextAnimated() {
     if (!state.cards.length) return;
-    const doRender = () => {
+    const cardEl = els.card;
+    const doSwap = () => {
       state.idx = (state.idx + 1) % state.cards.length;
       state.showBack = false;
       state.selected = null; state.correct = null;
@@ -202,9 +209,49 @@
       clearTimer();
       renderCard();
     };
-    els.card.classList.add('instant');
-    doRender();
-    requestAnimationFrame(() => els.card.classList.remove('instant'));
+    // Start out animation
+    cardEl.classList.remove('advance-in');
+    cardEl.classList.add('advance-out');
+    const onOut = () => {
+      cardEl.removeEventListener('animationend', onOut);
+      cardEl.classList.remove('advance-out');
+      doSwap();
+      // Animate in
+      cardEl.classList.add('advance-in');
+      const onIn = () => { cardEl.classList.remove('advance-in'); cardEl.removeEventListener('animationend', onIn); };
+      cardEl.addEventListener('animationend', onIn);
+    };
+    cardEl.addEventListener('animationend', onOut);
+  }
+
+  // Start the 'advance-out' animation now and wait for it to finish before swapping.
+  // If outDurationMs is provided, temporarily set animationDuration to sync with flip.
+  function nextAnimatedWithOut(outDurationMs) {
+    if (!state.cards.length) return;
+    const cardEl = els.card;
+    const doSwap = () => {
+      state.idx = (state.idx + 1) % state.cards.length;
+      state.showBack = false;
+      state.selected = null; state.correct = null;
+      state.multiSelected.clear(); state.multiChecked = false;
+      clearTimer();
+      renderCard();
+    };
+    // Set temporary duration if provided
+    if (outDurationMs) cardEl.style.animationDuration = outDurationMs + 'ms';
+    cardEl.classList.remove('advance-in');
+    cardEl.classList.add('advance-out');
+    const onOut = () => {
+      cardEl.removeEventListener('animationend', onOut);
+      cardEl.classList.remove('advance-out');
+      // Clear temporary duration so 'advance-in' uses its own
+      if (outDurationMs) cardEl.style.animationDuration = '';
+      doSwap();
+      cardEl.classList.add('advance-in');
+      const onIn = () => { cardEl.classList.remove('advance-in'); cardEl.removeEventListener('animationend', onIn); };
+      cardEl.addEventListener('animationend', onIn);
+    };
+    cardEl.addEventListener('animationend', onOut);
   }
 
   function prev() {
@@ -247,7 +294,7 @@
     clearTimer();
     if (state.correct) {
       state.resetTimer = setTimeout(() => {
-        next();
+        nextAnimated();
         state.resetTimer = null;
       }, DELAY_MS);
     } else {
@@ -327,7 +374,7 @@
     clearTimer();
     if (ok) {
       state.resetTimer = setTimeout(() => {
-        next();
+        nextAnimated();
         state.resetTimer = null;
       }, DELAY_MS);
     } else {
@@ -375,10 +422,9 @@
         state.resetTimer = setTimeout(() => {
           state.showBack = false;
           renderCard();
-          state.resetTimer = setTimeout(() => {
-            next();
-            state.resetTimer = null;
-          }, FLIP_MS);
+          // Start next transition now, synchronized to flip duration
+          nextAnimatedWithOut(FLIP_MS);
+          state.resetTimer = setTimeout(() => { state.resetTimer = null; }, FLIP_MS);
         }, DELAY_MS);
       }
     }
@@ -395,10 +441,8 @@
           state.resetTimer = setTimeout(() => {
             state.showBack = false;
             renderCard();
-            state.resetTimer = setTimeout(() => {
-              next();
-              state.resetTimer = null;
-            }, FLIP_MS);
+            nextAnimatedWithOut(FLIP_MS);
+            state.resetTimer = setTimeout(() => { state.resetTimer = null; }, FLIP_MS);
           }, DELAY_MS);
         }
       }
