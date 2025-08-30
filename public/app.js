@@ -292,9 +292,11 @@
   const FLIP_MS = 500;   // CSS flip transition duration (keep in sync with styles)
 
   // Allowlist-based HTML sanitizer for safe rendering
-  const ALLOWED_TAGS = new Set(['b','strong','i','em','u','s','br','p','ul','ol','li','code','pre','ruby','rt','rb','rp','span','h1','h2','h3','h4','h5','h6','font']);
+  const ALLOWED_TAGS = new Set(['b','strong','i','em','u','s','br','p','ul','ol','li','code','pre','ruby','rt','rb','rp','span','h1','h2','h3','h4','h5','h6','font','a','img','sup','sub','mark']);
   const ALLOWED_ATTRS = {
-    font: new Set(['color', 'size', 'face'])
+    font: new Set(['color', 'size', 'face']),
+    a: new Set(['href']),
+    img: new Set(['src','alt','title','width','height'])
   };
   function sanitizeAttr(tag, name, value) {
     // Only allow attributes explicitly listed per tag
@@ -315,6 +317,30 @@
       if (name === 'face') {
         const v = String(value).trim();
         if (/^[\w\s,-]+$/.test(v)) return v; // simple whitelist
+        return null;
+      }
+    }
+    if (tag === 'a') {
+      if (name === 'href') {
+        const v = String(value).trim();
+        // allow http(s), mailto, and fragment links only
+        if (/^(https?:)?\/\//i.test(v) || /^mailto:/i.test(v) || /^#/.test(v)) return v;
+        return null;
+      }
+    }
+    if (tag === 'img') {
+      if (name === 'src') {
+        const v = String(value).trim();
+        // allow http(s) and data:image URIs
+        if (/^(https?:)?\/\//i.test(v) || /^data:image\//i.test(v)) return v;
+        return null;
+      }
+      if (name === 'alt' || name === 'title') {
+        return String(value);
+      }
+      if (name === 'width' || name === 'height') {
+        const v = String(value).trim();
+        if (/^\d{1,4}$/.test(v)) return v; // simple numeric px
         return null;
       }
     }
