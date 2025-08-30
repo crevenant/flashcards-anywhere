@@ -178,6 +178,7 @@ main {
 .cell-front, .cell-back { max-width: 320px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; white-space: normal; }
 .cell-type { white-space: nowrap; }
 .row-actions { display: inline-flex; gap: 6px; }
+.table-pager { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 10px; }
 
 footer { text-align: center; color: var(--muted); padding: 12px; }
 

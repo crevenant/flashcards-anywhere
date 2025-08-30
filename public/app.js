@@ -78,6 +78,10 @@
     deckNewInput: document.getElementById('deck-new-input'),
     cardsSection: document.getElementById('cards-section'),
     cardsTbody: document.getElementById('cards-tbody'),
+    cardsPrev: document.getElementById('cards-prev'),
+    cardsNext: document.getElementById('cards-next'),
+    cardsPage: document.getElementById('cards-page'),
+    viewerSection: document.querySelector('section.viewer'),
   };
 
   let state = {
@@ -96,7 +100,14 @@
     lastCardId: null,
     choiceOrder: null, // array mapping displayed index -> original index for current MCQ card
     deckMap: {},
+    cardsPage: 1,
+    cardsPerPage: 5,
   };
+
+  function updateViewerVisibility() {
+    const anyOpen = !!(state.showAdder || state.showDecks || state.showCards);
+    if (els.viewerSection) els.viewerSection.hidden = anyOpen;
+  }
   const DELAY_MS = 1200; // delay before reset/advance
   const FLIP_MS = 500;   // CSS flip transition duration (keep in sync with styles)
 
@@ -181,7 +192,21 @@
   function renderCardsTable() {
     if (!els.cardsTbody) return;
     els.cardsTbody.innerHTML = '';
-    state.cards.forEach(card => {
+    const total = state.cards.length;
+    const per = state.cardsPerPage;
+    const totalPages = total === 0 ? 0 : Math.ceil(total / per);
+    if (totalPages === 0) {
+      state.cardsPage = 0;
+    } else if (state.cardsPage < 1) {
+      state.cardsPage = 1;
+    } else if (state.cardsPage > totalPages) {
+      state.cardsPage = totalPages;
+    }
+    const start = totalPages === 0 ? 0 : (state.cardsPage - 1) * per;
+    const end = totalPages === 0 ? 0 : Math.min(start + per, total);
+    const pageItems = state.cards.slice(start, end);
+
+    pageItems.forEach(card => {
       const tr = document.createElement('tr');
       const tdId = document.createElement('td'); tdId.textContent = card.id;
       const tdDeck = document.createElement('td'); tdDeck.textContent = state.deckMap[card.deck_id] || '';
@@ -207,6 +232,12 @@
       tr.appendChild(tdId); tr.appendChild(tdDeck); tr.appendChild(tdType); tr.appendChild(tdFront); tr.appendChild(tdBack); tr.appendChild(tdActions);
       els.cardsTbody.appendChild(tr);
     });
+
+    if (els.cardsPage) {
+      els.cardsPage.textContent = `${totalPages === 0 ? 0 : state.cardsPage} / ${totalPages}`;
+    }
+    if (els.cardsPrev) els.cardsPrev.disabled = !(totalPages > 0 && state.cardsPage > 1);
+    if (els.cardsNext) els.cardsNext.disabled = !(totalPages > 0 && state.cardsPage < totalPages);
   }
 
   function beginRename(row, deck) {
@@ -533,6 +564,7 @@
     state.multiSelected.clear(); state.multiChecked = false;
     clearTimer();
     renderCard();
+    state.cardsPage = 1;
     renderCardsTable();
   }
 
@@ -592,6 +624,7 @@
       const mainEl = document.getElementById('main');
       if (mainEl) mainEl.classList.toggle('single-column', !state.showAdder);
       try { localStorage.setItem('showAdder', state.showAdder ? '1' : '0'); } catch {}
+      updateViewerVisibility();
     };
     els.toggleAddBtn.addEventListener('click', () => setAdderVisible(!state.showAdder));
     // restore persisted preference
@@ -606,6 +639,7 @@
       els.toggleDecksBtn.setAttribute('aria-pressed', state.showDecks ? 'true' : 'false');
       if (state.showDecks) { /* refresh list */ refresh(); }
       try { localStorage.setItem('showDecks', state.showDecks ? '1' : '0'); } catch {}
+      updateViewerVisibility();
     };
     els.toggleDecksBtn.addEventListener('click', () => setDecksVisible(!state.showDecks));
     try { state.showDecks = localStorage.getItem('showDecks') === '1'; } catch {}
@@ -620,12 +654,15 @@
       els.toggleCardsBtn.setAttribute('aria-pressed', state.showCards ? 'true' : 'false');
       if (state.showCards) renderCardsTable();
       try { localStorage.setItem('showCards', state.showCards ? '1' : '0'); } catch {}
+      updateViewerVisibility();
     };
     els.toggleCardsBtn.addEventListener('click', () => setCardsVisible(!state.showCards));
     try { state.showCards = localStorage.getItem('showCards') === '1'; } catch {}
     setCardsVisible(state.showCards);
     window.setCardsVisible = setCardsVisible;
   }
+  if (els.cardsPrev) els.cardsPrev.addEventListener('click', () => { state.cardsPage = Math.max(1, state.cardsPage - 1); renderCardsTable(); });
+  if (els.cardsNext) els.cardsNext.addEventListener('click', () => { state.cardsPage = state.cardsPage + 1; renderCardsTable(); });
   // (Deck management dropdown removed)
   if (els.deckAddForm) {
     els.deckAddForm.addEventListener('submit', async (e) => {
