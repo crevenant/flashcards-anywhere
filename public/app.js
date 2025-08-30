@@ -537,7 +537,7 @@
     tdFront.appendChild(frontInput); tr.appendChild(tdFront);
     // Back/Answers editor
     const tdBack = document.createElement('td');
-    let backInput, choicesArea, multiChk, answerInput, answersInput;
+    let backInput, choicesArea, multiChk, cardsChk, answerInput, answersInput;
     if (type === 'basic') {
       backInput = document.createElement('textarea');
       backInput.value = card.back || ''; backInput.style.width = '100%'; backInput.rows = 8;
@@ -545,6 +545,9 @@
     } else {
       multiChk = document.createElement('input'); multiChk.type = 'checkbox'; multiChk.checked = !!card.multi;
       const multiLbl = document.createElement('label'); multiLbl.className = 'inline'; multiLbl.appendChild(multiChk); multiLbl.appendChild(document.createTextNode(' Allow multiple answers'));
+      // Mini card layout toggle for MCQ choices
+      cardsChk = document.createElement('input'); cardsChk.type = 'checkbox'; cardsChk.checked = !!card.choices_as_cards;
+      const cardsLbl = document.createElement('label'); cardsLbl.className = 'inline'; cardsLbl.appendChild(cardsChk); cardsLbl.appendChild(document.createTextNode(' Display choices as mini cards'));
       choicesArea = document.createElement('textarea'); choicesArea.style.width = '100%'; choicesArea.rows = 8; choicesArea.value = (card.choices || []).join('\n');
       answerInput = document.createElement('input'); answerInput.type = 'number'; answerInput.min = '1'; answerInput.value = (card.answer != null ? (card.answer+1) : 1); answerInput.style.width = '100%';
       answersInput = document.createElement('input'); answersInput.type = 'text'; answersInput.placeholder = 'e.g. 1,3'; answersInput.value = (card.answers || []).map(i => i+1).join(','); answersInput.style.width = '100%';
@@ -557,6 +560,7 @@
       singleWrap.style.display = multiChk.checked ? 'none' : '';
       multiChk.addEventListener('change', () => { multiWrap.style.display = multiChk.checked ? '' : 'none'; singleWrap.style.display = multiChk.checked ? 'none' : ''; });
       tdBack.appendChild(multiLbl);
+      tdBack.appendChild(cardsLbl);
       tdBack.appendChild(choicesArea);
       tdBack.appendChild(singleWrap);
       tdBack.appendChild(multiWrap);
@@ -592,6 +596,7 @@
     frontInput.addEventListener('input', updatePreview);
     if (backInput) backInput.addEventListener('input', updatePreview);
     if (choicesArea) choicesArea.addEventListener('input', updatePreview);
+    if (cardsChk) cardsChk.addEventListener('change', updatePreview);
     if (multiChk) multiChk.addEventListener('change', updatePreview);
 
     save.addEventListener('click', async () => {
