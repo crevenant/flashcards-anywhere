@@ -68,21 +68,22 @@
 
           <label>
             Front
-            <textarea id="front-input" placeholder="Enter the prompt or question" required></textarea>
+            <textarea id="front-input" class="code-input" placeholder="Enter the prompt or question" required spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
+            <small class="hint">Supports simple HTML tags; raw markup is shown here.</small>
           </label>
 
           <label id="back-label">
             Back
-            <textarea id="back-input" placeholder="Enter the answer shown on flip" required></textarea>
-            <small class="hint">Shown when flipping a Flip card.</small>
+            <textarea id="back-input" class="code-input" placeholder="Enter the answer shown on flip" required spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
+            <small class="hint">HTML allowed; text displays as raw markup here.</small>
           </label>
 
           <div id="mcq-fields" hidden>
             <label>
               Choices (one per line)
-              <textarea id="choices-input" placeholder="Option A
+              <textarea id="choices-input" class="code-input" placeholder="Option A
 Option B
-Option C"></textarea>
+Option C" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
             </label>
             <label class="inline">
               <input id="multi-input" type="checkbox" /> Allow multiple correct answers

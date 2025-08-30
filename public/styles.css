@@ -169,6 +169,13 @@ main {
 .adder label.inline > input { margin: 0; }
 .adder .hint { margin-top: -2px; }
 .adder textarea { min-height: 80px; resize: vertical; }
+.adder .code-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  tab-size: 2;
+  caret-color: var(--accent);
+}
 .adder .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 #single-answer-row, #multi-answer-row { grid-template-columns: 1fr; }
 #single-answer-row > label, #multi-answer-row > label { grid-column: 1 / -1; }
