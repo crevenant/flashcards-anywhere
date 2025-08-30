@@ -14,14 +14,15 @@
           Deck:
           <select id="deck-select"></select>
         </label>
-        <button id="shuffle-btn" title="Shuffle cards">Shuffle</button>
+        <button id="shuffle-btn" class="btn" title="Shuffle cards">Shuffle</button>
+        <button id="toggle-add-btn" class="btn" aria-pressed="false" title="Show/Hide Add Card">Add Card</button>
         <label title="Render card text as limited, safe HTML">
           <input id="html-toggle" type="checkbox" /> Allow HTML
         </label>
       </div>
     </header>
 
-    <main>
+    <main id="main">
       <section class="viewer">
         <div id="card" class="card" tabindex="0" aria-label="Flashcard">
           <div id="card-front" class="face front">
@@ -41,7 +42,7 @@
         </div>
       </section>
 
-      <section class="adder">
+      <section id="adder-section" class="adder" hidden>
         <div class="adder-header">
           <h2>Add Card</h2>
           <p class="muted">Create a flip card or a multiple-choice question.</p>

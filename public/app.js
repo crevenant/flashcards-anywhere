@@ -26,6 +26,7 @@
     deckSelect: document.getElementById('deck-select'),
     shuffleBtn: document.getElementById('shuffle-btn'),
     htmlToggle: document.getElementById('html-toggle'),
+    toggleAddBtn: document.getElementById('toggle-add-btn'),
     card: document.getElementById('card'),
     front: document.getElementById('card-front'),
     frontText: document.getElementById('front-text'),
@@ -51,6 +52,7 @@
     singleAnswerRow: document.getElementById('single-answer-row'),
     multiAnswerRow: document.getElementById('multi-answer-row'),
     clearBtn: document.getElementById('clear-btn'),
+    adderSection: document.getElementById('adder-section'),
   };
 
   let state = {
@@ -64,7 +66,10 @@
     multiSelected: new Set(),
     multiChecked: false,
     allowHTML: false,
+    showAdder: false,
   };
+  const DELAY_MS = 1200; // delay before reset/advance
+  const FLIP_MS = 500;   // CSS flip transition duration (keep in sync with styles)
 
   // Allowlist-based HTML sanitizer for safe rendering
   const ALLOWED_TAGS = new Set(['b','strong','i','em','u','s','br','p','ul','ol','li','code','pre','ruby','rt','rb','rp','span']);
@@ -189,22 +194,32 @@
 
   function next() {
     if (!state.cards.length) return;
-    state.idx = (state.idx + 1) % state.cards.length;
-    state.showBack = false;
-    state.selected = null; state.correct = null;
-    state.multiSelected.clear(); state.multiChecked = false;
-    clearTimer();
-    renderCard();
+    const doRender = () => {
+      state.idx = (state.idx + 1) % state.cards.length;
+      state.showBack = false;
+      state.selected = null; state.correct = null;
+      state.multiSelected.clear(); state.multiChecked = false;
+      clearTimer();
+      renderCard();
+    };
+    els.card.classList.add('instant');
+    doRender();
+    requestAnimationFrame(() => els.card.classList.remove('instant'));
   }
 
   function prev() {
     if (!state.cards.length) return;
-    state.idx = (state.idx - 1 + state.cards.length) % state.cards.length;
-    state.showBack = false;
-    state.selected = null; state.correct = null;
-    state.multiSelected.clear(); state.multiChecked = false;
-    clearTimer();
-    renderCard();
+    const doRender = () => {
+      state.idx = (state.idx - 1 + state.cards.length) % state.cards.length;
+      state.showBack = false;
+      state.selected = null; state.correct = null;
+      state.multiSelected.clear(); state.multiChecked = false;
+      clearTimer();
+      renderCard();
+    };
+    els.card.classList.add('instant');
+    doRender();
+    requestAnimationFrame(() => els.card.classList.remove('instant'));
   }
 
   function shuffle() {
@@ -217,7 +232,9 @@
     state.selected = null; state.correct = null;
     state.multiSelected.clear(); state.multiChecked = false;
     clearTimer();
+    els.card.classList.add('instant');
     renderCard();
+    requestAnimationFrame(() => els.card.classList.remove('instant'));
   }
 
   function selectChoice(i) {
@@ -228,12 +245,19 @@
     renderCard();
     // Reset after short delay
     clearTimer();
-    state.resetTimer = setTimeout(() => {
-      state.selected = null;
-      state.correct = null;
-      renderCard();
-      state.resetTimer = null;
-    }, 1200);
+    if (state.correct) {
+      state.resetTimer = setTimeout(() => {
+        next();
+        state.resetTimer = null;
+      }, DELAY_MS);
+    } else {
+      state.resetTimer = setTimeout(() => {
+        state.selected = null;
+        state.correct = null;
+        renderCard();
+        state.resetTimer = null;
+      }, DELAY_MS);
+    }
   }
 
   function setResult(message, correctTexts) {
@@ -301,13 +325,20 @@
     state.correct = ok;
     renderCard();
     clearTimer();
-    state.resetTimer = setTimeout(() => {
-      state.multiSelected.clear();
-      state.multiChecked = false;
-      state.correct = null;
-      renderCard();
-      state.resetTimer = null;
-    }, 1200);
+    if (ok) {
+      state.resetTimer = setTimeout(() => {
+        next();
+        state.resetTimer = null;
+      }, DELAY_MS);
+    } else {
+      state.resetTimer = setTimeout(() => {
+        state.multiSelected.clear();
+        state.multiChecked = false;
+        state.correct = null;
+        renderCard();
+        state.resetTimer = null;
+      }, DELAY_MS);
+    }
   }
 
   function clearTimer() {
@@ -338,6 +369,18 @@
     if (c && (c.type || 'basic') === 'basic') {
       state.showBack = !state.showBack;
       renderCard();
+      clearTimer();
+      if (state.showBack) {
+        // After viewing back, flip to front fully, then advance
+        state.resetTimer = setTimeout(() => {
+          state.showBack = false;
+          renderCard();
+          state.resetTimer = setTimeout(() => {
+            next();
+            state.resetTimer = null;
+          }, FLIP_MS);
+        }, DELAY_MS);
+      }
     }
   });
   els.card.addEventListener('keydown', (e) => {
@@ -347,6 +390,17 @@
       if (c && (c.type || 'basic') === 'basic') {
         state.showBack = !state.showBack;
         renderCard();
+        clearTimer();
+        if (state.showBack) {
+          state.resetTimer = setTimeout(() => {
+            state.showBack = false;
+            renderCard();
+            state.resetTimer = setTimeout(() => {
+              next();
+              state.resetTimer = null;
+            }, FLIP_MS);
+          }, DELAY_MS);
+        }
       }
     } else if (e.key === 'ArrowRight') {
       next();
@@ -358,6 +412,22 @@
   els.next.addEventListener('click', next);
   els.prev.addEventListener('click', prev);
   els.shuffleBtn.addEventListener('click', shuffle);
+  if (els.toggleAddBtn) {
+    const setAdderVisible = (show) => {
+      state.showAdder = !!show;
+      if (els.adderSection) els.adderSection.hidden = !state.showAdder;
+      els.toggleAddBtn.classList.toggle('active', state.showAdder);
+      els.toggleAddBtn.setAttribute('aria-pressed', state.showAdder ? 'true' : 'false');
+      // Adjust main grid columns when adder is hidden/visible
+      const mainEl = document.getElementById('main');
+      if (mainEl) mainEl.classList.toggle('single-column', !state.showAdder);
+      try { localStorage.setItem('showAdder', state.showAdder ? '1' : '0'); } catch {}
+    };
+    els.toggleAddBtn.addEventListener('click', () => setAdderVisible(!state.showAdder));
+    // restore persisted preference
+    try { state.showAdder = localStorage.getItem('showAdder') === '1'; } catch {}
+    setAdderVisible(state.showAdder);
+  }
   els.typeInput.addEventListener('change', () => {
     const type = els.typeInput.value;
     const isMcq = type === 'mcq';
