@@ -52,6 +52,7 @@
   const els = {
     deckSelect: document.getElementById('deck-select'),
     shuffleBtn: document.getElementById('shuffle-btn'),
+    timerBtn: document.getElementById('timer-btn'),
     toggleAddBtn: document.getElementById('toggle-add-btn'),
     toggleDecksBtn: document.getElementById('toggle-decks-btn'),
     toggleCardsBtn: document.getElementById('toggle-cards-btn'),
@@ -100,6 +101,8 @@
     previewBackWrap: document.getElementById('preview-back-wrap'),
     previewChoices: document.getElementById('preview-choices'),
     previewChoicesWrap: document.getElementById('preview-choices-wrap'),
+    cardTimer: document.getElementById('card-timer'),
+    cardTimerProgress: document.getElementById('card-timer-progress'),
   };
 
   let state = {
@@ -121,7 +124,91 @@
     cardsPage: 1,
     cardsPerPage: 5,
     cardsFilter: '',
+    timerEnabled: false,
+    timerDurationMs: 10000,
+    timerStart: null,
+    timerRAF: null,
+    timerHold: false,
+    timeoutReveal: false,
   };
+  
+  function clearCardTimer() {
+    if (state.timerRAF) {
+      cancelAnimationFrame(state.timerRAF);
+      state.timerRAF = null;
+    }
+    state.timerStart = null;
+    if (els.cardTimer) els.cardTimer.hidden = true;
+    if (els.cardTimerProgress) els.cardTimerProgress.style.width = '0%';
+  }
+
+  function startCardTimer() {
+    clearCardTimer();
+    if (!state.timerEnabled || !els.viewerSection || els.viewerSection.hidden) return;
+    if (!els.cardTimer || !els.cardTimerProgress) return;
+    els.cardTimer.hidden = false;
+    state.timerStart = performance.now();
+    const duration = state.timerDurationMs;
+    const tick = (now) => {
+      const elapsed = now - state.timerStart;
+      const pct = Math.max(0, Math.min(1, elapsed / duration));
+      els.cardTimerProgress.style.width = (pct * 100).toFixed(2) + '%';
+      if (pct < 1) {
+        state.timerRAF = requestAnimationFrame(tick);
+      } else {
+        // Give a moment to show the bar filled, then clear it
+        setTimeout(() => clearCardTimer(), 300);
+        // Time's up: reveal the correct answer, then advance after the normal delay
+        const c = state.cards[state.idx];
+        if (!c) return;
+        // Prevent auto-restarting the timer during reveal rerenders
+        state.timerHold = true;
+        state.timeoutReveal = true;
+        if ((c.type || 'basic') === 'basic') {
+          // Flip to back, wait DELAY_MS, flip front and advance with synced animation
+          state.showBack = true;
+          renderCard();
+          clearTimer();
+          state.resetTimer = setTimeout(() => {
+            state.showBack = false;
+            renderCard();
+            // Release hold right before advancing
+            state.timerHold = false;
+            state.timeoutReveal = false;
+            nextAnimatedWithOut(FLIP_MS);
+            state.resetTimer = setTimeout(() => { state.resetTimer = null; }, FLIP_MS);
+          }, DELAY_MS);
+        } else if ((c.type || 'basic') === 'mcq') {
+          if (c.multi) {
+            // Show all correct answers
+            state.multiChecked = true;
+            state.correct = false; // label as not correct (time ran out)
+            renderCard();
+          } else {
+            // Highlight the correct choice
+            const order = state.choiceOrder || (c.choices || []).map((_, i) => i);
+            const dispIdx = order.findIndex((orig) => orig === c.answer);
+            if (dispIdx >= 0) {
+              state.selected = dispIdx;
+              state.correct = true; // highlight as correct
+            }
+            renderCard();
+          }
+          clearTimer();
+          state.resetTimer = setTimeout(() => {
+            // Clean up result then advance
+            clearResult();
+            // Release hold right before advancing
+            state.timerHold = false;
+            state.timeoutReveal = false;
+            nextAnimated();
+            state.resetTimer = null;
+          }, DELAY_MS);
+        }
+      }
+    };
+    state.timerRAF = requestAnimationFrame(tick);
+  }
 
   function updateViewerVisibility() {
     const anyOpen = !!(state.showAdder || state.showDecks || state.showCards);
@@ -513,7 +600,11 @@
       if (c.multi) {
         els.mcqCheck.hidden = false;
         if (state.multiChecked) {
-          setResult(state.correct ? 'Correct!' : 'Wrong.', (c.answers || []).map(i => c.choices[i]));
+          if (state.timeoutReveal) {
+            setResult("Time's up.", (c.answers || []).map(i => c.choices[i]));
+          } else {
+            setResult(state.correct ? 'Correct!' : 'Wrong.', (c.answers || []).map(i => c.choices[i]));
+          }
           els.mcqResult.hidden = false;
         } else {
           clearResult();
@@ -524,6 +615,10 @@
         if (state.selected == null) {
           clearResult();
           els.mcqResult.hidden = true;
+        } else if (state.timeoutReveal) {
+          const correctText = c.answer != null ? c.choices[c.answer] : '';
+          setResult("Time's up.", correctText ? [correctText] : []);
+          els.mcqResult.hidden = false;
         } else if (state.correct) {
           setResult('Correct!', []);
           els.mcqResult.hidden = false;
@@ -545,11 +640,14 @@
     }
     els.card.classList.toggle('flipped', state.showBack);
     els.pos.textContent = `${state.idx + 1} / ${state.cards.length}`;
+    // Start/restart card timer when arriving on a card front
+    if (state.timerEnabled && !state.showBack && !state.timerHold) startCardTimer();
   }
 
   function next() {
     // Use animated transition for moving to the next card
     nextAnimated();
+    clearCardTimer();
   }
 
   // Animated next transition: fade/slide out, swap, then fade/slide in
@@ -561,7 +659,10 @@
       state.showBack = false;
       state.selected = null; state.correct = null;
       state.multiSelected.clear(); state.multiChecked = false;
+      state.timeoutReveal = false;
+      state.timerHold = false;
       clearTimer();
+      clearCardTimer();
       renderCard();
     };
     // Start out animation
@@ -589,7 +690,10 @@
       state.showBack = false;
       state.selected = null; state.correct = null;
       state.multiSelected.clear(); state.multiChecked = false;
+      state.timeoutReveal = false;
+      state.timerHold = false;
       clearTimer();
+      clearCardTimer();
       renderCard();
     };
     // Set temporary duration if provided
@@ -616,12 +720,17 @@
       state.showBack = false;
       state.selected = null; state.correct = null;
       state.multiSelected.clear(); state.multiChecked = false;
+      state.timeoutReveal = false;
+      state.timerHold = false;
       clearTimer();
+      clearCardTimer();
+      clearResult();
       renderCard();
     };
     els.card.classList.add('instant');
     doRender();
     requestAnimationFrame(() => els.card.classList.remove('instant'));
+    clearCardTimer();
   }
 
   function shuffle() {
@@ -633,22 +742,27 @@
     state.showBack = false;
     state.selected = null; state.correct = null;
     state.multiSelected.clear(); state.multiChecked = false;
+    state.timeoutReveal = false;
+    state.timerHold = false;
     clearTimer();
+    clearCardTimer();
     els.card.classList.add('instant');
     renderCard();
     requestAnimationFrame(() => els.card.classList.remove('instant'));
+    clearCardTimer();
   }
 
   function selectChoice(i) {
     const c = state.cards[state.idx];
     if ((c.type || 'basic') !== 'mcq') return;
+    state.timeoutReveal = false;
     state.selected = i;
     const order = state.choiceOrder || (c.choices || []).map((_, k) => k);
     const chosenOrig = order[i];
     state.correct = (chosenOrig === c.answer);
     renderCard();
     // Reset after short delay
-    clearTimer();
+    clearCardTimer();
     if (state.correct) {
       state.resetTimer = setTimeout(() => {
         // Hide result panel before transitioning
@@ -670,6 +784,7 @@
   function toggleMultiChoice(i) {
     const c = state.cards[state.idx];
     if ((c.type || 'basic') !== 'mcq' || !c.multi || state.multiChecked) return;
+    state.timeoutReveal = false;
     if (state.multiSelected.has(i)) state.multiSelected.delete(i); else state.multiSelected.add(i);
     renderCard();
   }
@@ -677,13 +792,17 @@
   // Result rendering with HTML support in correct answer text
   function setResult(message, correctTexts) {
     // Style state on container (ok/err)
-    els.mcqResult.classList.toggle('ok', message && /^Correct/i.test(message));
-    els.mcqResult.classList.toggle('err', message && /^Wrong/i.test(message));
+    const isOk = message && /^Correct/i.test(message);
+    const isErr = message && /^Wrong/i.test(message);
+    const isTimeout = message && /^Time/i.test(message);
+    els.mcqResult.classList.toggle('ok', !!isOk);
+    els.mcqResult.classList.toggle('err', !!isErr);
     els.mcqResult.innerHTML = '';
     els.mcqResult.hidden = false;
     if (message) {
       const p = document.createElement('p');
-      p.className = 'status ' + (/^Correct/i.test(message) ? 'success' : 'error');
+      let variant = isOk ? 'success' : (isErr ? 'error' : (isTimeout ? 'timeout' : ''));
+      p.className = 'status ' + variant;
       p.textContent = message;
       els.mcqResult.appendChild(p);
     }
@@ -708,6 +827,7 @@
   function checkMulti() {
     const c = state.cards[state.idx];
     if ((c.type || 'basic') !== 'mcq' || !c.multi) return;
+    state.timeoutReveal = false;
     const answers = new Set((c.answers || []));
     const order = state.choiceOrder || (c.choices || []).map((_, k) => k);
     let ok = answers.size === state.multiSelected.size;
@@ -721,6 +841,7 @@
     state.correct = ok;
     renderCard();
     clearTimer();
+    clearCardTimer();
     if (ok) {
       state.resetTimer = setTimeout(() => {
         clearResult();
@@ -756,7 +877,10 @@
     state.showBack = false;
     state.selected = null; state.correct = null;
     state.multiSelected.clear(); state.multiChecked = false;
+    state.timeoutReveal = false;
+    state.timerHold = false;
     clearTimer();
+    clearCardTimer();
     renderCard();
     state.cardsPage = 1;
     renderCardsTable();
@@ -766,9 +890,11 @@
   els.card.addEventListener('click', () => {
     const c = state.cards[state.idx];
     if (c && (c.type || 'basic') === 'basic') {
+      state.timeoutReveal = false;
       state.showBack = !state.showBack;
       renderCard();
       clearTimer();
+      clearCardTimer();
       if (state.showBack) {
         // After viewing back, flip to front fully, then advance
         state.resetTimer = setTimeout(() => {
@@ -786,9 +912,11 @@
       e.preventDefault();
       const c = state.cards[state.idx];
       if (c && (c.type || 'basic') === 'basic') {
+        state.timeoutReveal = false;
         state.showBack = !state.showBack;
         renderCard();
         clearTimer();
+        clearCardTimer();
         if (state.showBack) {
           state.resetTimer = setTimeout(() => {
             state.showBack = false;
@@ -808,6 +936,20 @@
   els.next.addEventListener('click', next);
   els.prev.addEventListener('click', prev);
   els.shuffleBtn.addEventListener('click', shuffle);
+  if (els.timerBtn) {
+    const setTimerEnabled = (on) => {
+      state.timerEnabled = !!on;
+      els.timerBtn.classList.toggle('active', state.timerEnabled);
+      els.timerBtn.setAttribute('aria-pressed', state.timerEnabled ? 'true' : 'false');
+      // Update button label for clear feedback
+      els.timerBtn.textContent = state.timerEnabled ? '⏱ 10s' : '⏱';
+      try { localStorage.setItem('timerEnabled', state.timerEnabled ? '1' : '0'); } catch {}
+      if (state.timerEnabled) startCardTimer(); else clearCardTimer();
+    };
+    els.timerBtn.addEventListener('click', () => setTimerEnabled(!state.timerEnabled));
+    try { state.timerEnabled = localStorage.getItem('timerEnabled') === '1'; } catch {}
+    setTimerEnabled(state.timerEnabled);
+  }
   if (els.toggleAddBtn) {
     const setAdderVisible = (show) => {
       state.showAdder = !!show;

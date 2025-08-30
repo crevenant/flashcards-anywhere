@@ -15,6 +15,7 @@
           <select id="deck-select"></select>
         </label>
         <button id="shuffle-btn" class="btn" title="Shuffle cards">Shuffle</button>
+        <button id="timer-btn" class="btn" aria-pressed="false" title="Enable 10s timer">⏱</button>
         <button id="toggle-add-btn" class="btn" aria-pressed="false" title="Show/Hide Add Card">Add Card</button>
         <button id="toggle-decks-btn" class="btn" aria-pressed="false" title="Show/Hide Decks">Decks</button>
         <button id="toggle-cards-btn" class="btn" aria-pressed="false" title="Show/Hide Card Browser">Cards</button>
@@ -27,6 +28,9 @@
         <div id="card" class="card" tabindex="0" aria-label="Flashcard">
           <div id="card-front" class="face front">
             <div id="front-text"></div>
+            <div id="card-timer" class="card-timer" hidden>
+              <div id="card-timer-progress" class="card-timer-progress"></div>
+            </div>
             <div id="choices-section" class="choices-section" hidden>
               <div id="mcq-choices" class="choices" hidden></div>
               <div class="choices-actions"><button id="mcq-check" class="btn btn-primary" hidden>Check Answers</button></div>
