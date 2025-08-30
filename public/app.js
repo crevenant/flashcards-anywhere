@@ -158,26 +158,17 @@
       } else {
         // Give a moment to show the bar filled, then clear it
         setTimeout(() => clearCardTimer(), 300);
-        // Time's up: reveal the correct answer, then advance after the normal delay
+        // Time's up: reveal the correct answer; do not auto-advance
         const c = state.cards[state.idx];
         if (!c) return;
         // Prevent auto-restarting the timer during reveal rerenders
         state.timerHold = true;
         state.timeoutReveal = true;
         if ((c.type || 'basic') === 'basic') {
-          // Flip to back, wait DELAY_MS, flip front and advance with synced animation
+          // Flip to back and show; wait for user to move next
           state.showBack = true;
           renderCard();
           clearTimer();
-          state.resetTimer = setTimeout(() => {
-            state.showBack = false;
-            renderCard();
-            // Release hold right before advancing
-            state.timerHold = false;
-            state.timeoutReveal = false;
-            nextAnimatedWithOut(FLIP_MS);
-            state.resetTimer = setTimeout(() => { state.resetTimer = null; }, FLIP_MS);
-          }, DELAY_MS);
         } else if ((c.type || 'basic') === 'mcq') {
           if (c.multi) {
             // Show all correct answers
@@ -195,15 +186,8 @@
             renderCard();
           }
           clearTimer();
-          state.resetTimer = setTimeout(() => {
-            // Clean up result then advance
-            clearResult();
-            // Release hold right before advancing
-            state.timerHold = false;
-            state.timeoutReveal = false;
-            nextAnimated();
-            state.resetTimer = null;
-          }, DELAY_MS);
+          // Keep result visible; wait for user to move next
+          // timerHold stays true to avoid auto-restarting timer during reveal
         }
       }
     };
@@ -761,23 +745,8 @@
     const chosenOrig = order[i];
     state.correct = (chosenOrig === c.answer);
     renderCard();
-    // Reset after short delay
+    // Show result and hold until user moves to next
     clearCardTimer();
-    if (state.correct) {
-      state.resetTimer = setTimeout(() => {
-        // Hide result panel before transitioning
-        clearResult();
-        nextAnimated();
-        state.resetTimer = null;
-      }, DELAY_MS);
-    } else {
-      state.resetTimer = setTimeout(() => {
-        state.selected = null;
-        state.correct = null;
-        renderCard();
-        state.resetTimer = null;
-      }, DELAY_MS);
-    }
   }
 
 
@@ -842,21 +811,7 @@
     renderCard();
     clearTimer();
     clearCardTimer();
-    if (ok) {
-      state.resetTimer = setTimeout(() => {
-        clearResult();
-        nextAnimated();
-        state.resetTimer = null;
-      }, DELAY_MS);
-    } else {
-      state.resetTimer = setTimeout(() => {
-        state.multiSelected.clear();
-        state.multiChecked = false;
-        state.correct = null;
-        renderCard();
-        state.resetTimer = null;
-      }, DELAY_MS);
-    }
+    // Keep result visible; wait for user to move to next card
   }
 
   function clearTimer() {
@@ -895,16 +850,7 @@
       renderCard();
       clearTimer();
       clearCardTimer();
-      if (state.showBack) {
-        // After viewing back, flip to front fully, then advance
-        state.resetTimer = setTimeout(() => {
-          state.showBack = false;
-          renderCard();
-          // Start next transition now, synchronized to flip duration
-          nextAnimatedWithOut(FLIP_MS);
-          state.resetTimer = setTimeout(() => { state.resetTimer = null; }, FLIP_MS);
-        }, DELAY_MS);
-      }
+      // If showing back, keep it until user navigates; no auto-advance
     }
   });
   els.card.addEventListener('keydown', (e) => {
@@ -917,14 +863,7 @@
         renderCard();
         clearTimer();
         clearCardTimer();
-        if (state.showBack) {
-          state.resetTimer = setTimeout(() => {
-            state.showBack = false;
-            renderCard();
-            nextAnimatedWithOut(FLIP_MS);
-            state.resetTimer = setTimeout(() => { state.resetTimer = null; }, FLIP_MS);
-          }, DELAY_MS);
-        }
+        // If showing back, keep it until user navigates; no auto-advance
       }
     } else if (e.key === 'ArrowRight') {
       next();
