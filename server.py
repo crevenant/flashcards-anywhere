@@ -63,6 +63,21 @@ def init_db():
             cur.execute("ALTER TABLE cards ADD COLUMN answers TEXT")
         if 'choices_as_cards' not in cols:
             cur.execute("ALTER TABLE cards ADD COLUMN choices_as_cards INTEGER NOT NULL DEFAULT 0")
+        # SRS scheduling columns
+        cur.execute("PRAGMA table_info(cards)")
+        cols = {r[1] for r in cur.fetchall()}
+        if 'srs_due' not in cols:
+            cur.execute("ALTER TABLE cards ADD COLUMN srs_due TEXT")
+        if 'srs_ivl' not in cols:
+            cur.execute("ALTER TABLE cards ADD COLUMN srs_ivl INTEGER DEFAULT 0")
+        if 'srs_ease' not in cols:
+            cur.execute("ALTER TABLE cards ADD COLUMN srs_ease INTEGER DEFAULT 250")
+        if 'srs_lapses' not in cols:
+            cur.execute("ALTER TABLE cards ADD COLUMN srs_lapses INTEGER DEFAULT 0")
+        if 'srs_type' not in cols:
+            cur.execute("ALTER TABLE cards ADD COLUMN srs_type TEXT DEFAULT 'new'")
+        if 'srs_step' not in cols:
+            cur.execute("ALTER TABLE cards ADD COLUMN srs_step INTEGER DEFAULT 0")
         # Reviews table for per-answer statistics
         cur.execute(
             """
@@ -317,6 +332,108 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
 
     def handle_api_post(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/srs/review':
+            payload = self._read_json()
+            try:
+                card_id = int(payload.get('card_id'))
+            except Exception:
+                self._set_json_headers(HTTPStatus.BAD_REQUEST)
+                self.wfile.write(json.dumps({"error": "'card_id' is required and must be an integer"}).encode('utf-8'))
+                return
+            grade = str(payload.get('grade') or '').lower()  # again|hard|good|easy
+            if grade not in ('again','hard','good','easy'):
+                self._set_json_headers(HTTPStatus.BAD_REQUEST)
+                self.wfile.write(json.dumps({"error": "'grade' must be one of again, hard, good, easy"}).encode('utf-8'))
+                return
+            now = sqlite3.connect(':memory:').execute("select datetime('now')").fetchone()[0]
+            conn = get_connection()
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT srs_type, srs_step, srs_ivl, srs_ease, srs_lapses FROM cards WHERE id=?", (card_id,))
+                row = cur.fetchone()
+                if row is None:
+                    self._set_json_headers(HTTPStatus.NOT_FOUND)
+                    self.wfile.write(json.dumps({"error": "Card not found"}).encode('utf-8'))
+                    return
+                srs_type = row[0] or 'new'
+                srs_step = int(row[1] or 0)
+                srs_ivl = int(row[2] or 0)
+                srs_ease = int(row[3] or 250)
+                srs_lapses = int(row[4] or 0)
+
+                # Learning steps (minutes)
+                steps = [1, 10]
+
+                def minutes_from_now(mins):
+                    return sqlite3.connect(':memory:').execute("select datetime('now', ?)", (f"+{int(mins)} minutes",)).fetchone()[0]
+
+                def days_from_now(days):
+                    return sqlite3.connect(':memory:').execute("select date('now', ?) || ' 00:00:00'", (f"+{int(days)} days",)).fetchone()[0]
+
+                new_type = srs_type
+                new_step = srs_step
+                new_ivl = srs_ivl
+                new_ease = srs_ease
+                new_due = now
+                new_lapses = srs_lapses
+
+                if srs_type in ('new','learn'):
+                    new_type = 'learn'
+                    if grade == 'again':
+                        new_step = 0
+                        new_due = minutes_from_now(steps[0])
+                    elif grade == 'hard':
+                        new_due = minutes_from_now(steps[max(0, min(new_step, len(steps)-1))])
+                    elif grade == 'good':
+                        new_step += 1
+                        if new_step >= len(steps):
+                            # graduate
+                            new_type = 'review'
+                            new_ivl = 1
+                            new_due = days_from_now(new_ivl)
+                        else:
+                            new_due = minutes_from_now(steps[new_step])
+                    elif grade == 'easy':
+                        new_type = 'review'
+                        new_ivl = 3
+                        new_due = days_from_now(new_ivl)
+                else:  # review
+                    if grade == 'again':
+                        new_lapses += 1
+                        new_ease = max(130, new_ease - 200)
+                        new_ivl = 1
+                        new_due = days_from_now(new_ivl)
+                    elif grade == 'hard':
+                        new_ease = max(130, new_ease - 150)
+                        new_ivl = max(1, int(round(new_ivl * 1.2)))
+                        new_due = days_from_now(new_ivl)
+                    elif grade == 'good':
+                        new_ivl = max(1, int(round(new_ivl * (new_ease/100))))
+                        new_due = days_from_now(new_ivl)
+                    elif grade == 'easy':
+                        new_ease = min(350, new_ease + 150)
+                        new_ivl = max(1, int(round(new_ivl * (new_ease/100) * 1.3)))
+                        new_due = days_from_now(new_ivl)
+
+                cur.execute(
+                    "UPDATE cards SET srs_type=?, srs_step=?, srs_ivl=?, srs_ease=?, srs_lapses=?, srs_due=? , updated_at = datetime('now') WHERE id=?",
+                    (new_type, new_step, new_ivl, new_ease, new_lapses, new_due, card_id)
+                )
+                conn.commit()
+                self._set_json_headers(HTTPStatus.OK)
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "card_id": card_id,
+                    "srs_type": new_type,
+                    "srs_step": new_step,
+                    "srs_ivl": new_ivl,
+                    "srs_ease": new_ease,
+                    "srs_lapses": new_lapses,
+                    "srs_due": new_due,
+                }).encode('utf-8'))
+            finally:
+                conn.close()
+            return
         if parsed.path == '/api/reviews':
             payload = self._read_json()
             try:

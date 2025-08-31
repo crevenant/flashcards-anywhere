@@ -58,6 +58,12 @@
         const r = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card_id, result, duration_ms }) });
         return r.ok;
       } catch { return false; }
+    },
+    async srsReview(card_id, grade) {
+      try {
+        const r = await fetch('/api/srs/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card_id, grade }) });
+        return r.ok ? await r.json() : null;
+      } catch { return null; }
     }
   };
 
@@ -77,6 +83,11 @@
     mcqChoices: document.getElementById('mcq-choices'),
     mcqCheck: document.getElementById('mcq-check'),
     mcqResult: document.getElementById('mcq-result'),
+    srsActions: document.getElementById('srs-actions'),
+    srsAgain: document.getElementById('srs-again'),
+    srsHard: document.getElementById('srs-hard'),
+    srsGood: document.getElementById('srs-good'),
+    srsEasy: document.getElementById('srs-easy'),
     back: document.getElementById('card-back'),
     prev: document.getElementById('prev-btn'),
     next: document.getElementById('next-btn'),
@@ -716,6 +727,7 @@
       els.choicesSection.hidden = true;
       els.mcqChoices.hidden = true;
       els.mcqResult.hidden = true;
+      if (els.srsActions) els.srsActions.hidden = true;
       renderSafe(els.back, 'Use the form below to add one');
       els.card.classList.toggle('flipped', state.showBack);
       els.pos.textContent = '0 / 0';
@@ -789,26 +801,32 @@
             setResult(state.correct ? 'Correct!' : 'Wrong.', (c.answers || []).map(i => c.choices[i]));
           }
           els.mcqResult.hidden = false;
+          if (els.srsActions) els.srsActions.hidden = false;
         } else {
           clearResult();
           els.mcqResult.hidden = true;
+          if (els.srsActions) els.srsActions.hidden = true;
         }
       } else {
         els.mcqCheck.hidden = true;
         if (state.selected == null) {
           clearResult();
           els.mcqResult.hidden = true;
+          if (els.srsActions) els.srsActions.hidden = true;
         } else if (state.timeoutReveal) {
           const correctText = c.answer != null ? c.choices[c.answer] : '';
           setResult("Time's up.", correctText ? [correctText] : []);
           els.mcqResult.hidden = false;
+          if (els.srsActions) els.srsActions.hidden = false;
         } else if (state.correct) {
           setResult('Correct!', []);
           els.mcqResult.hidden = false;
+          if (els.srsActions) els.srsActions.hidden = false;
         } else {
           const correctText = c.answer != null ? c.choices[c.answer] : '';
           setResult('Wrong.', correctText ? [correctText] : []);
           els.mcqResult.hidden = false;
+          if (els.srsActions) els.srsActions.hidden = false;
         }
       }
       renderSafe(els.back, '');
@@ -1227,6 +1245,7 @@
   els.next.addEventListener('click', next);
   els.prev.addEventListener('click', prev);
   els.shuffleBtn.addEventListener('click', shuffle);
+  bindSrsButtons();
   // Recalculate MCQ height on window resize
   window.addEventListener('resize', () => adjustCardHeight());
   if (els.timerBtn) {
@@ -1415,3 +1434,18 @@
     alert('Failed to load data. See console for details.');
   });
 })();
+    // For basic cards, show SRS when back is visible
+    if ((c.type || 'basic') === 'basic') {
+      if (els.srsActions) els.srsActions.hidden = !state.showBack;
+    }
+  function bindSrsButtons() {
+    const click = (grade) => async () => {
+      const c = state.cards[state.idx]; if (!c) return;
+      await api.srsReview(c.id, grade);
+      next();
+    };
+    if (els.srsAgain) els.srsAgain.addEventListener('click', click('again'));
+    if (els.srsHard) els.srsHard.addEventListener('click', click('hard'));
+    if (els.srsGood) els.srsGood.addEventListener('click', click('good'));
+    if (els.srsEasy) els.srsEasy.addEventListener('click', click('easy'));
+  }
