@@ -213,6 +213,8 @@ main {
   tab-size: 2;
   caret-color: var(--accent);
 }
+.adder #mcq-fields { padding: 12px; display: grid; gap: 10px; border: 1px solid #1f2937; border-radius: 10px; background: #0b1225; }
+.adder #mcq-fields .inline { padding: 12px; }
 .adder .row { display: grid; grid-template-columns: 1fr; gap: 10px; }
 #single-answer-row, #multi-answer-row { grid-template-columns: 1fr; }
 #single-answer-row > label, #multi-answer-row > label { grid-column: 1 / -1; }
