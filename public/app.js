@@ -1249,6 +1249,18 @@
       prev();
     }
   });
+  function bindSrsButtons() {
+    const click = (grade) => async () => {
+      const c = state.cards[state.idx]; if (!c) return;
+      await api.srsReview(c.id, grade);
+      await refresh();
+    };
+    if (els.srsAgain) els.srsAgain.addEventListener('click', click('again'));
+    if (els.srsHard) els.srsHard.addEventListener('click', click('hard'));
+    if (els.srsGood) els.srsGood.addEventListener('click', click('good'));
+    if (els.srsEasy) els.srsEasy.addEventListener('click', click('easy'));
+  }
+
   els.mcqCheck.addEventListener('click', checkMulti);
   els.next.addEventListener('click', next);
   els.prev.addEventListener('click', prev);
@@ -1455,18 +1467,3 @@
     alert('Failed to load data. See console for details.');
   });
 })();
-    // For basic cards, show SRS when back is visible
-    if ((c.type || 'basic') === 'basic') {
-      if (els.srsActions) els.srsActions.hidden = !state.showBack;
-    }
-  function bindSrsButtons() {
-    const click = (grade) => async () => {
-      const c = state.cards[state.idx]; if (!c) return;
-      await api.srsReview(c.id, grade);
-      await refresh();
-    };
-    if (els.srsAgain) els.srsAgain.addEventListener('click', click('again'));
-    if (els.srsHard) els.srsHard.addEventListener('click', click('hard'));
-    if (els.srsGood) els.srsGood.addEventListener('click', click('good'));
-    if (els.srsEasy) els.srsEasy.addEventListener('click', click('easy'));
-  }
