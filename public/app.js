@@ -47,6 +47,12 @@
       if (!r.ok) throw new Error('Failed to create deck');
       return await r.json();
     },
+    async stats(deckName) {
+      const url = deckName ? `/api/stats?deck=${encodeURIComponent(deckName)}` : '/api/stats';
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('Failed to load stats');
+      return await r.json();
+    },
     async review(card_id, result, duration_ms) {
       try {
         const r = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card_id, result, duration_ms }) });
@@ -100,6 +106,9 @@
     statsSummary: document.getElementById('stats-summary'),
     statsList: document.getElementById('stats-list'),
     statsDeckName: document.getElementById('stats-deck-name'),
+    statsPrev: document.getElementById('stats-prev'),
+    statsNext: document.getElementById('stats-next'),
+    statsPageEl: document.getElementById('stats-page'),
     cardsTbody: document.getElementById('cards-tbody'),
     cardsList: document.getElementById('cards-list'),
     cardsPrev: document.getElementById('cards-prev'),
@@ -133,6 +142,9 @@
     showDecks: false,
     showCards: false,
     showStats: false,
+    statsPage: 1,
+    statsPerPage: 5,
+    statsPerCard: [],
     lastCardId: null,
     choiceOrder: null, // array mapping displayed index -> original index for current MCQ card
     deckMap: {},
@@ -1151,8 +1163,26 @@
       { label: 'Avg ms', value: `${data.avg_duration_ms != null ? Math.round(data.avg_duration_ms) : '-'}` },
     ];
     items.forEach(it => { const box = document.createElement('div'); box.className = 'stat-box'; const v = document.createElement('div'); v.className = 'value'; v.textContent = it.value; box.appendChild(v); const l = document.createElement('div'); l.className = 'label'; l.textContent = it.label; box.appendChild(l); els.statsSummary.appendChild(box); });
+    // Store per-card and render current page
+    state.statsPerCard = data.per_card || [];
+    state.statsPage = 1;
+    renderStatsList();
+  }
+
+  function renderStatsList() {
+    if (!els.statsList) return;
     els.statsList.innerHTML = '';
-    (data.per_card || []).forEach(row => { const div = document.createElement('div'); div.className = 'stats-row'; const front = document.createElement('div'); front.className = 'front'; renderSafe(front, row.front || ''); div.appendChild(front); const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `Total ${row.total} • Correct ${row.correct} • Wrong ${row.wrong} • Timeout ${row.timeout}`; div.appendChild(meta); els.statsList.appendChild(div); });
+    const total = state.statsPerCard.length;
+    const per = state.statsPerPage;
+    const totalPages = total === 0 ? 0 : Math.ceil(total / per);
+    if (totalPages === 0) state.statsPage = 0; else if (state.statsPage < 1) state.statsPage = 1; else if (state.statsPage > totalPages) state.statsPage = totalPages;
+    const start = totalPages === 0 ? 0 : (state.statsPage - 1) * per;
+    const end = totalPages === 0 ? 0 : Math.min(start + per, total);
+    const items = state.statsPerCard.slice(start, end);
+    items.forEach(row => { const div = document.createElement('div'); div.className = 'stats-row'; const front = document.createElement('div'); front.className = 'front'; renderSafe(front, row.front || ''); div.appendChild(front); const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `Total ${row.total} • Correct ${row.correct} • Wrong ${row.wrong} • Timeout ${row.timeout}`; div.appendChild(meta); els.statsList.appendChild(div); });
+    if (els.statsPageEl) els.statsPageEl.textContent = `${totalPages === 0 ? 0 : state.statsPage} / ${totalPages}`;
+    if (els.statsPrev) els.statsPrev.disabled = !(totalPages > 0 && state.statsPage > 1);
+    if (els.statsNext) els.statsNext.disabled = !(totalPages > 0 && state.statsPage < totalPages);
   }
 
   // Events
@@ -1290,6 +1320,8 @@
     setStatsVisible(state.showStats);
     window.setStatsVisible = setStatsVisible;
   }
+  if (els.statsPrev) els.statsPrev.addEventListener('click', () => { state.statsPage = Math.max(1, state.statsPage - 1); renderStatsList(); });
+  if (els.statsNext) els.statsNext.addEventListener('click', () => { state.statsPage = state.statsPage + 1; renderStatsList(); });
   if (els.cardsPrev) els.cardsPrev.addEventListener('click', () => { state.cardsPage = Math.max(1, state.cardsPage - 1); renderCardsTable(); });
   if (els.cardsNext) els.cardsNext.addEventListener('click', () => { state.cardsPage = state.cardsPage + 1; renderCardsTable(); });
   if (els.cardsFilterInput) els.cardsFilterInput.addEventListener('input', () => { state.cardsFilter = els.cardsFilterInput.value; state.cardsPage = 1; renderCardsTable(); });
