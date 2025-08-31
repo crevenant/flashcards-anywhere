@@ -561,9 +561,11 @@
     const end = totalPages === 0 ? 0 : Math.min(start + per, total);
     const pageItems = list.slice(start, end);
 
-    pageItems.forEach(card => {
+    pageItems.forEach((card, i) => {
       const tile = document.createElement('div');
-      tile.className = 'mini-card';
+      tile.className = 'mini-card enter';
+      tile.style.animationDelay = (i * 20) + 'ms';
+      tile.addEventListener('animationend', () => tile.classList.remove('enter'), { once: true });
       const typeBadge = document.createElement('div'); typeBadge.className = 'mini-type'; typeBadge.textContent = (card.type || 'basic').toUpperCase(); tile.appendChild(typeBadge);
       const body = document.createElement('div'); body.className = 'mini-scroll';
       const content = document.createElement('div'); content.className = 'mini-content';
@@ -1352,7 +1354,7 @@
   if (els.toggleAddBtn) {
     const setAdderVisible = (show) => {
       state.showAdder = !!show;
-      if (els.adderSection) els.adderSection.hidden = !state.showAdder;
+      if (els.adderSection) setPanelVisible(els.adderSection, state.showAdder);
       els.toggleAddBtn.classList.toggle('active', state.showAdder);
       els.toggleAddBtn.setAttribute('aria-pressed', state.showAdder ? 'true' : 'false');
       // Adjust main grid columns when adder is hidden/visible
@@ -1369,7 +1371,7 @@
   if (els.toggleDecksBtn) {
     const setDecksVisible = (show) => {
       state.showDecks = !!show;
-      if (els.decksSection) els.decksSection.hidden = !state.showDecks;
+      if (els.decksSection) setPanelVisible(els.decksSection, state.showDecks);
       els.toggleDecksBtn.classList.toggle('active', state.showDecks);
       els.toggleDecksBtn.setAttribute('aria-pressed', state.showDecks ? 'true' : 'false');
       if (state.showDecks) { /* refresh list */ refresh(); }
@@ -1384,7 +1386,7 @@
   if (els.toggleCardsBtn) {
     const setCardsVisible = (show) => {
       state.showCards = !!show;
-      if (els.cardsSection) els.cardsSection.hidden = !state.showCards;
+      if (els.cardsSection) setPanelVisible(els.cardsSection, state.showCards);
       els.toggleCardsBtn.classList.toggle('active', state.showCards);
       els.toggleCardsBtn.setAttribute('aria-pressed', state.showCards ? 'true' : 'false');
       if (state.showCards) renderCardsTable();
@@ -1399,7 +1401,7 @@
   if (els.toggleStatsBtn) {
     const setStatsVisible = async (show) => {
       state.showStats = !!show;
-      if (els.statsSection) els.statsSection.hidden = !state.showStats;
+      if (els.statsSection) setPanelVisible(els.statsSection, state.showStats);
       els.toggleStatsBtn.classList.toggle('active', state.showStats);
       els.toggleStatsBtn.setAttribute('aria-pressed', state.showStats ? 'true' : 'false');
       updateViewerVisibility();
@@ -1414,7 +1416,7 @@
   if (els.toggleSettingsBtn) {
     const setSettingsVisible = (show) => {
       state.showSettings = !!show;
-      if (els.settingsSection) els.settingsSection.hidden = !state.showSettings;
+      if (els.settingsSection) setPanelVisible(els.settingsSection, state.showSettings);
       els.toggleSettingsBtn.classList.toggle('active', state.showSettings);
       els.toggleSettingsBtn.setAttribute('aria-pressed', state.showSettings ? 'true' : 'false');
       updateViewerVisibility();
@@ -1479,8 +1481,33 @@
       }
       renderCardsTable();
       refresh();
-      alert('Settings applied');
+      showToast('Settings applied');
     });
+  }
+
+  function setPanelVisible(el, show) {
+    const DURATION = 220;
+    if (show) {
+      if (!el) return;
+      el.hidden = false;
+      requestAnimationFrame(() => el.classList.add('open'));
+    } else {
+      if (!el) return;
+      el.classList.remove('open');
+      setTimeout(() => { el.hidden = true; }, DURATION);
+    }
+  }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = String(msg || '');
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => {
+      t.classList.remove('show');
+      setTimeout(() => { if (t.parentElement) t.parentElement.removeChild(t); }, 220);
+    }, 1600);
   }
   if (els.srsModeBtn) {
     const setSrsMode = async (on) => {

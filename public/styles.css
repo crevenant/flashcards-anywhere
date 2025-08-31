@@ -66,6 +66,15 @@ main {
 
 .viewer { display: grid; gap: 12px; }
 .viewer .result { width: min(820px, 100%); margin: 0 auto; }
+.adder, #decks-section, #cards-section, #stats-section, #settings-section {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 180ms ease, transform 200ms ease;
+}
+.adder.open, #decks-section.open, #cards-section.open, #stats-section.open, #settings-section.open {
+  opacity: 1;
+  transform: translateY(0);
+}
 .card {
   position: relative;
   width: min(820px, 100%);
@@ -253,6 +262,28 @@ main {
 .mini-card .actions { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: grid; gap: 8px; opacity: 0; transition: opacity 160ms ease; pointer-events: none; }
 .mini-card:hover .actions, .mini-card:focus-within .actions { opacity: 1; }
 .mini-card .icon-btn { width: 40px; height: 40px; border-radius: 999px; background: #0b1225; border: 1px solid #1f2937; color: var(--text); display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.35); pointer-events: auto; }
+
+/* Mini-card enter animation */
+.mini-card.enter { animation: cardEnter 220ms cubic-bezier(0.22,1,0.36,1) both; }
+@keyframes cardEnter { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* Toast notifications */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: #0b1225;
+  color: var(--text);
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  opacity: 0;
+  transition: opacity 180ms ease, transform 220ms ease;
+  z-index: 9999;
+}
+.toast.show { opacity: 1; }
 .mini-card .icon-btn:hover { border-color: var(--accent); }
 .mini-card .mini-choices { display: grid; gap: 6px; margin-top: 6px; width: 100%; }
 .mini-card .mini-choice { border: 1px dashed #1f2937; border-radius: 8px; padding: 6px; font-size: 16px; }
