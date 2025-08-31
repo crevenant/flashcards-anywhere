@@ -141,6 +141,7 @@
     viewerSection: document.querySelector('section.viewer'),
     cardsFilterInput: document.getElementById('cards-filter'),
     cardsCount: document.getElementById('cards-count'),
+    cardsPageSize: document.getElementById('cards-page-size'),
     cardsPreview: document.getElementById('cards-preview'),
     previewType: document.getElementById('preview-type'),
     previewFront: document.getElementById('preview-front'),
@@ -1392,6 +1393,23 @@
   if (els.cardsPrev) els.cardsPrev.addEventListener('click', () => { state.cardsPage = Math.max(1, state.cardsPage - 1); renderCardsTable(); });
   if (els.cardsNext) els.cardsNext.addEventListener('click', () => { state.cardsPage = state.cardsPage + 1; renderCardsTable(); });
   if (els.cardsFilterInput) els.cardsFilterInput.addEventListener('input', () => { state.cardsFilter = els.cardsFilterInput.value; state.cardsPage = 1; renderCardsTable(); });
+  if (els.cardsPageSize) {
+    // Initialize from saved preference
+    try {
+      const saved = parseInt(localStorage.getItem('cardsPerPage') || '', 10);
+      if (!isNaN(saved) && [10,25,50,100].includes(saved)) state.cardsPerPage = saved;
+    } catch {}
+    els.cardsPageSize.value = String(state.cardsPerPage);
+    els.cardsPageSize.addEventListener('change', () => {
+      const v = parseInt(els.cardsPageSize.value, 10);
+      if (!isNaN(v)) {
+        state.cardsPerPage = v;
+        state.cardsPage = 1;
+        try { localStorage.setItem('cardsPerPage', String(v)); } catch {}
+        renderCardsTable();
+      }
+    });
+  }
   // (Deck management dropdown removed)
   if (els.deckAddForm) {
     els.deckAddForm.addEventListener('submit', async (e) => {

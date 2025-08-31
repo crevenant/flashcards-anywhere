@@ -165,6 +165,15 @@ Option C" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete
             <div class="table-controls">
               <input id="cards-filter" type="text" placeholder="Filter cards..." />
               <span id="cards-count" class="muted"></span>
+              <label style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+                <span class="muted">Page size</span>
+                <select id="cards-page-size">
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
             </div>
             <div id="cards-list" class="cards-list"></div>
             <div class="table-pager">
