@@ -1364,7 +1364,7 @@
       state.srsMode = !!on;
       els.srsModeBtn.classList.toggle('active', state.srsMode);
       els.srsModeBtn.setAttribute('aria-pressed', state.srsMode ? 'true' : 'false');
-      els.srsModeBtn.textContent = state.srsMode ? 'Study (On)' : 'Study';
+      els.srsModeBtn.textContent = 'Study (SRS)';
       try { localStorage.setItem('srsMode', state.srsMode ? '1' : '0'); } catch {}
       await refresh();
     };
