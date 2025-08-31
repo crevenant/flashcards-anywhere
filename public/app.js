@@ -844,7 +844,7 @@
           if (els.srsActions) els.srsActions.hidden = false;
         }
       }
-      renderSafe(els.back, '');
+      if (els.backText) { renderSafe(els.backText, ''); }
       // Keep card unflipped for MCQ
       state.showBack = false;
     } else {
