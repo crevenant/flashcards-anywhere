@@ -175,7 +175,7 @@
     choiceOrder: null, // array mapping displayed index -> original index for current MCQ card
     deckMap: {},
     cardsPage: 1,
-    cardsPerPage: 10,
+    cardsPerPage: 5,
     cardsFilter: '',
     timerEnabled: false,
     autoAdvanceEnabled: false,
@@ -1397,7 +1397,7 @@
     // Initialize from saved preference
     try {
       const saved = parseInt(localStorage.getItem('cardsPerPage') || '', 10);
-      if (!isNaN(saved) && [10,25,50,100].includes(saved)) state.cardsPerPage = saved;
+      if (!isNaN(saved) && [5,10,25,50,100].includes(saved)) state.cardsPerPage = saved;
     } catch {}
     els.cardsPageSize.value = String(state.cardsPerPage);
     els.cardsPageSize.addEventListener('change', () => {
