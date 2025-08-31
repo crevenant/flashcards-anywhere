@@ -53,6 +53,12 @@
       if (!r.ok) throw new Error('Failed to load stats');
       return await r.json();
     },
+    async srsDue(deckName, limit=50) {
+      const url = deckName ? `/api/srs/due?deck=${encodeURIComponent(deckName)}&limit=${encodeURIComponent(String(limit))}` : `/api/srs/due?limit=${encodeURIComponent(String(limit))}`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('Failed to load due cards');
+      return (await r.json()).cards || [];
+    },
     async review(card_id, result, duration_ms) {
       try {
         const r = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card_id, result, duration_ms }) });
@@ -76,6 +82,7 @@
     toggleDecksBtn: document.getElementById('toggle-decks-btn'),
     toggleCardsBtn: document.getElementById('toggle-cards-btn'),
     toggleStatsBtn: document.getElementById('toggle-stats-btn'),
+    srsModeBtn: document.getElementById('srs-mode-btn'),
     card: document.getElementById('card'),
     front: document.getElementById('card-front'),
     frontText: document.getElementById('front-text'),
@@ -156,6 +163,7 @@
     statsPage: 1,
     statsPerPage: 5,
     statsPerCard: [],
+    srsMode: false,
     lastCardId: null,
     choiceOrder: null, // array mapping displayed index -> original index for current MCQ card
     deckMap: {},
@@ -1146,7 +1154,7 @@
   async function refresh() {
     const [decks, cards] = await Promise.all([
       api.decks(),
-      api.cards(state.deckName)
+      (state.srsMode ? api.srsDue(state.deckName, 100) : api.cards(state.deckName))
     ]);
     renderDecks(decks);
     state.cards = cards;
@@ -1339,6 +1347,19 @@
     setStatsVisible(state.showStats);
     window.setStatsVisible = setStatsVisible;
   }
+  if (els.srsModeBtn) {
+    const setSrsMode = async (on) => {
+      state.srsMode = !!on;
+      els.srsModeBtn.classList.toggle('active', state.srsMode);
+      els.srsModeBtn.setAttribute('aria-pressed', state.srsMode ? 'true' : 'false');
+      els.srsModeBtn.textContent = state.srsMode ? 'Study (On)' : 'Study';
+      try { localStorage.setItem('srsMode', state.srsMode ? '1' : '0'); } catch {}
+      await refresh();
+    };
+    els.srsModeBtn.addEventListener('click', () => setSrsMode(!state.srsMode));
+    try { state.srsMode = localStorage.getItem('srsMode') === '1'; } catch {}
+    setSrsMode(state.srsMode);
+  }
   if (els.statsPrev) els.statsPrev.addEventListener('click', () => { state.statsPage = Math.max(1, state.statsPage - 1); renderStatsList(); });
   if (els.statsNext) els.statsNext.addEventListener('click', () => { state.statsPage = state.statsPage + 1; renderStatsList(); });
   if (els.cardsPrev) els.cardsPrev.addEventListener('click', () => { state.cardsPage = Math.max(1, state.cardsPage - 1); renderCardsTable(); });
@@ -1442,7 +1463,7 @@
     const click = (grade) => async () => {
       const c = state.cards[state.idx]; if (!c) return;
       await api.srsReview(c.id, grade);
-      next();
+      await refresh();
     };
     if (els.srsAgain) els.srsAgain.addEventListener('click', click('again'));
     if (els.srsHard) els.srsHard.addEventListener('click', click('hard'));

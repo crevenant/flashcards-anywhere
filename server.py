@@ -199,6 +199,34 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
     # ---- API handlers ----
     def handle_api_get(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/srs/due':
+            qs = parse_qs(parsed.query or '')
+            deck = qs.get('deck', [None])[0]
+            try:
+                limit = int(qs.get('limit', ['50'])[0])
+            except Exception:
+                limit = 50
+            conn = get_connection()
+            try:
+                cur = conn.cursor()
+                base = (
+                    "SELECT id, deck_id, front, back, created_at, updated_at, type, choices, answer, multi, answers, choices_as_cards "
+                    "FROM cards "
+                    "WHERE (srs_due IS NULL OR srs_due <= datetime('now') OR ifnull(srs_type,'new') = 'new')"
+                )
+                params = []
+                if deck:
+                    base += " AND deck_id IN (SELECT id FROM decks WHERE name = ?)"
+                    params.append(deck)
+                base += " ORDER BY COALESCE(srs_due, '1970-01-01') ASC, id ASC LIMIT ?"
+                params.append(limit)
+                cur.execute(base, tuple(params))
+                cards = [row_to_card(r) for r in cur.fetchall()]
+                self._set_json_headers()
+                self.wfile.write(json.dumps({"cards": cards}).encode('utf-8'))
+            finally:
+                conn.close()
+            return
         if parsed.path == '/api/stats':
             qs = parse_qs(parsed.query or '')
             deck = qs.get('deck', [None])[0]
