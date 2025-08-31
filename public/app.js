@@ -141,6 +141,7 @@
     setTimerEnable: document.getElementById('set-timer-enable'),
     setTimerSecs: document.getElementById('set-timer-secs'),
     setCardsPerPage: document.getElementById('set-cards-per-page'),
+    setDefaultDeck: document.getElementById('set-default-deck'),
     settingsApply: document.getElementById('settings-apply'),
     cardsTbody: document.getElementById('cards-tbody'),
     cardsList: document.getElementById('cards-list'),
@@ -474,6 +475,16 @@
     // Build id->name map
     state.deckMap = {};
     decks.forEach(d => { state.deckMap[d.id] = d.name; });
+    // Populate Settings default deck dropdown if present
+    if (els.setDefaultDeck) {
+      els.setDefaultDeck.innerHTML = '';
+      const any = document.createElement('option'); any.value = ''; any.textContent = 'All Decks'; els.setDefaultDeck.appendChild(any);
+      decks.forEach(d => { const opt = document.createElement('option'); opt.value = d.name; opt.textContent = d.name; els.setDefaultDeck.appendChild(opt); });
+      try {
+        const savedDef = localStorage.getItem('defaultDeckName') || '';
+        els.setDefaultDeck.value = savedDef;
+      } catch { els.setDefaultDeck.value = ''; }
+    }
     // Populate Add Card deck dropdown if present and is a <select>
     if (els.deckInput && els.deckInput.tagName && els.deckInput.tagName.toLowerCase() === 'select') {
       els.deckInput.innerHTML = '';
@@ -1439,6 +1450,15 @@
           if (els.cardsPageSize) els.cardsPageSize.value = String(v);
         }
       }
+      // Apply Default Deck
+      if (els.setDefaultDeck) {
+        const defName = els.setDefaultDeck.value || '';
+        try { localStorage.setItem('defaultDeckName', defName); } catch {}
+        if (state.deckName !== defName) {
+          state.deckName = defName;
+          if (els.deckSelect) els.deckSelect.value = defName;
+        }
+      }
       // Persist toggles
       try {
         localStorage.setItem('autoAdvanceEnabled', state.autoAdvanceEnabled ? '1' : '0');
@@ -1458,6 +1478,7 @@
         if (state.timerEnabled) startCardTimer(); else clearCardTimer();
       }
       renderCardsTable();
+      refresh();
       alert('Settings applied');
     });
   }
@@ -1580,6 +1601,8 @@
   });
 
   // Init
+  // Restore default deck before first refresh
+  try { const def = localStorage.getItem('defaultDeckName'); if (def != null) state.deckName = def; } catch {}
   // Always allow limited, safe HTML rendering
   refresh().catch(err => {
     console.error(err);
