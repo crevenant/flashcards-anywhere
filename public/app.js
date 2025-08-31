@@ -99,6 +99,7 @@
     statsSection: document.getElementById('stats-section'),
     statsSummary: document.getElementById('stats-summary'),
     statsList: document.getElementById('stats-list'),
+    statsDeckName: document.getElementById('stats-deck-name'),
     cardsTbody: document.getElementById('cards-tbody'),
     cardsList: document.getElementById('cards-list'),
     cardsPrev: document.getElementById('cards-prev'),
@@ -1136,6 +1137,10 @@
   async function renderStats() {
     if (!els.statsSummary || !els.statsList) return;
     const data = await (async ()=>{ try { return await api.stats(state.deckName); } catch(e){ return { total_cards: 0, reviewed_cards: 0, total_reviews: 0, correct:0, wrong:0, timeout:0, per_card: [] }; } })();
+    // Show selected deck name
+    if (els.statsDeckName) {
+      els.statsDeckName.textContent = state.deckName ? state.deckName : 'All Decks';
+    }
     els.statsSummary.innerHTML = '';
     const items = [
       { label: 'Cards', value: `${data.reviewed_cards || 0} / ${data.total_cards || 0}` },
