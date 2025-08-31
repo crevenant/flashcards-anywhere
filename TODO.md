@@ -2,7 +2,4 @@
 - [X] Add Auto-advance
 - [ ] Setup card statistics
 - [X] FavIcon
-- [ ] x
-- [ ] x
-- [ ] x
-- [ ] x
+- [ ] Minimum card size
