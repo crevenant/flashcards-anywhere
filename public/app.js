@@ -101,6 +101,7 @@
     srsGoodBasic: document.getElementById('srs-good-basic'),
     srsEasyBasic: document.getElementById('srs-easy-basic'),
     back: document.getElementById('card-back'),
+    backText: document.getElementById('back-text'),
     prev: document.getElementById('prev-btn'),
     next: document.getElementById('next-btn'),
     pos: document.getElementById('position'),
@@ -851,7 +852,7 @@
       els.mcqChoices.hidden = true;
       els.mcqResult.hidden = true;
       els.mcqCheck.hidden = true;
-      renderSafe(els.back, c.back);
+      if (els.backText) { renderSafe(els.backText, c.back); } else { renderSafe(els.back, c.back); }
     }
     els.card.classList.toggle('flipped', state.showBack);
     els.pos.textContent = `${state.idx + 1} / ${state.cards.length}`;
