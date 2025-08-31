@@ -82,6 +82,7 @@
     toggleDecksBtn: document.getElementById('toggle-decks-btn'),
     toggleCardsBtn: document.getElementById('toggle-cards-btn'),
     toggleStatsBtn: document.getElementById('toggle-stats-btn'),
+    toggleSettingsBtn: document.getElementById('toggle-settings-btn'),
     srsModeBtn: document.getElementById('srs-mode-btn'),
     card: document.getElementById('card'),
     front: document.getElementById('card-front'),
@@ -127,12 +128,20 @@
     deckNewInput: document.getElementById('deck-new-input'),
     cardsSection: document.getElementById('cards-section'),
     statsSection: document.getElementById('stats-section'),
+    settingsSection: document.getElementById('settings-section'),
     statsSummary: document.getElementById('stats-summary'),
     statsList: document.getElementById('stats-list'),
     statsDeckName: document.getElementById('stats-deck-name'),
     statsPrev: document.getElementById('stats-prev'),
     statsNext: document.getElementById('stats-next'),
     statsPageEl: document.getElementById('stats-page'),
+    // Settings inputs
+    setAutoAdvEnable: document.getElementById('set-auto-adv-enable'),
+    setAutoAdvSecs: document.getElementById('set-auto-adv-secs'),
+    setTimerEnable: document.getElementById('set-timer-enable'),
+    setTimerSecs: document.getElementById('set-timer-secs'),
+    setCardsPerPage: document.getElementById('set-cards-per-page'),
+    settingsApply: document.getElementById('settings-apply'),
     cardsTbody: document.getElementById('cards-tbody'),
     cardsList: document.getElementById('cards-list'),
     cardsPrev: document.getElementById('cards-prev'),
@@ -167,6 +176,7 @@
     showDecks: false,
     showCards: false,
     showStats: false,
+    showSettings: false,
     statsPage: 1,
     statsPerPage: 5,
     statsPerCard: [],
@@ -352,7 +362,7 @@
   }
 
   function updateViewerVisibility() {
-    const anyOpen = !!(state.showAdder || state.showDecks || state.showCards || state.showStats);
+    const anyOpen = !!(state.showAdder || state.showDecks || state.showCards || state.showStats || state.showSettings);
     if (els.viewerSection) els.viewerSection.hidden = anyOpen;
   }
   const DELAY_MS = 1200; // delay before reset/advance
@@ -1182,6 +1192,17 @@
     state.cardsPage = 1;
     renderCardsTable();
     if (state.showStats) await renderStats();
+    // Keep settings panel inputs in sync
+    syncSettingsUI();
+  }
+
+  function syncSettingsUI() {
+    if (!els.settingsSection) return;
+    if (els.setAutoAdvEnable) els.setAutoAdvEnable.checked = !!state.autoAdvanceEnabled;
+    if (els.setAutoAdvSecs) els.setAutoAdvSecs.value = Math.max(1, Math.round((state.autoAdvanceDelayMs || 5000) / 1000));
+    if (els.setTimerEnable) els.setTimerEnable.checked = !!state.timerEnabled;
+    if (els.setTimerSecs) els.setTimerSecs.value = Math.max(1, Math.round((state.timerDurationMs || 10000) / 1000));
+    if (els.setCardsPerPage) els.setCardsPerPage.value = String(state.cardsPerPage);
   }
 
   async function renderStats() {
@@ -1378,6 +1399,67 @@
     try { state.showStats = localStorage.getItem('showStats') === '1'; } catch {}
     setStatsVisible(state.showStats);
     window.setStatsVisible = setStatsVisible;
+  }
+  if (els.toggleSettingsBtn) {
+    const setSettingsVisible = (show) => {
+      state.showSettings = !!show;
+      if (els.settingsSection) els.settingsSection.hidden = !state.showSettings;
+      els.toggleSettingsBtn.classList.toggle('active', state.showSettings);
+      els.toggleSettingsBtn.setAttribute('aria-pressed', state.showSettings ? 'true' : 'false');
+      updateViewerVisibility();
+      syncSettingsUI();
+    };
+    els.toggleSettingsBtn.addEventListener('click', () => setSettingsVisible(!state.showSettings));
+    try { state.showSettings = localStorage.getItem('showSettings') === '1'; } catch {}
+    setSettingsVisible(state.showSettings);
+  }
+
+  if (els.settingsApply) {
+    els.settingsApply.addEventListener('click', () => {
+      // Apply Auto-Advance settings
+      if (els.setAutoAdvEnable) state.autoAdvanceEnabled = !!els.setAutoAdvEnable.checked;
+      if (els.setAutoAdvSecs) {
+        const secs = parseInt(els.setAutoAdvSecs.value, 10);
+        if (!isNaN(secs) && secs > 0) state.autoAdvanceDelayMs = secs * 1000;
+      }
+      // Apply Timer settings
+      if (els.setTimerEnable) state.timerEnabled = !!els.setTimerEnable.checked;
+      if (els.setTimerSecs) {
+        const t = parseInt(els.setTimerSecs.value, 10);
+        if (!isNaN(t) && t > 0) state.timerDurationMs = t * 1000;
+      }
+      // Apply Cards page size
+      if (els.setCardsPerPage) {
+        const v = parseInt(els.setCardsPerPage.value, 10);
+        if (!isNaN(v)) {
+          state.cardsPerPage = v;
+          state.cardsPage = 1;
+          try { localStorage.setItem('cardsPerPage', String(v)); } catch {}
+          // mirror into toolbar selector if present
+          if (els.cardsPageSize) els.cardsPageSize.value = String(v);
+        }
+      }
+      // Persist toggles
+      try {
+        localStorage.setItem('autoAdvanceEnabled', state.autoAdvanceEnabled ? '1' : '0');
+        localStorage.setItem('autoAdvanceDelayMs', String(state.autoAdvanceDelayMs || 5000));
+        localStorage.setItem('timerEnabled', state.timerEnabled ? '1' : '0');
+        localStorage.setItem('timerDurationMs', String(state.timerDurationMs || 10000));
+      } catch {}
+      // Reflect header toggles and behaviors
+      if (els.autoAdvBtn) {
+        els.autoAdvBtn.classList.toggle('active', state.autoAdvanceEnabled);
+        els.autoAdvBtn.setAttribute('aria-pressed', state.autoAdvanceEnabled ? 'true' : 'false');
+        if (state.autoAdvanceEnabled) startAutoAdvance(); else clearAutoAdvance();
+      }
+      if (els.timerBtn) {
+        els.timerBtn.classList.toggle('active', state.timerEnabled);
+        els.timerBtn.setAttribute('aria-pressed', state.timerEnabled ? 'true' : 'false');
+        if (state.timerEnabled) startCardTimer(); else clearCardTimer();
+      }
+      renderCardsTable();
+      alert('Settings applied');
+    });
   }
   if (els.srsModeBtn) {
     const setSrsMode = async (on) => {

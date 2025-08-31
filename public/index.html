@@ -23,6 +23,7 @@
         <button id="toggle-cards-btn" class="btn" aria-pressed="false" title="Show/Hide Card Browser">Cards</button>
         <button id="toggle-add-btn" class="btn" aria-pressed="false" title="Show/Hide Add Card">Add Card</button>
         <button id="toggle-stats-btn" class="btn" aria-pressed="false" title="Show/Hide Statistics">Stats</button>
+        <button id="toggle-settings-btn" class="btn" aria-pressed="false" title="Show/Hide Settings">Settings</button>
         
       </div>
     </header>
@@ -204,6 +205,49 @@ Option C" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete
             </div>
           </aside>
         </div>
+      </section>
+
+      <section id="settings-section" class="adder" hidden>
+        <div class="adder-header">
+          <h2>Settings</h2>
+          <p class="muted">Tune defaults and behaviors.</p>
+        </div>
+        <form id="settings-form">
+          <div class="row">
+            <label class="inline">
+              <input type="checkbox" id="set-auto-adv-enable" /> Auto-Advance
+            </label>
+            <label>
+              Auto-Advance seconds
+              <input type="number" id="set-auto-adv-secs" min="1" value="5" />
+            </label>
+          </div>
+          <div class="row">
+            <label class="inline">
+              <input type="checkbox" id="set-timer-enable" /> Timer
+            </label>
+            <label>
+              Timer seconds
+              <input type="number" id="set-timer-secs" min="1" value="10" />
+            </label>
+          </div>
+          <div class="row">
+            <label>
+              Cards page size
+              <select id="set-cards-per-page">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <div></div>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="settings-apply" class="btn btn-primary">Apply</button>
+          </div>
+        </form>
       </section>
 
       <section id="stats-section" class="adder" hidden>
