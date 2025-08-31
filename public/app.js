@@ -95,6 +95,11 @@
     srsHard: document.getElementById('srs-hard'),
     srsGood: document.getElementById('srs-good'),
     srsEasy: document.getElementById('srs-easy'),
+    srsActionsBasic: document.getElementById('srs-actions-basic'),
+    srsAgainBasic: document.getElementById('srs-again-basic'),
+    srsHardBasic: document.getElementById('srs-hard-basic'),
+    srsGoodBasic: document.getElementById('srs-good-basic'),
+    srsEasyBasic: document.getElementById('srs-easy-basic'),
     back: document.getElementById('card-back'),
     prev: document.getElementById('prev-btn'),
     next: document.getElementById('next-btn'),
@@ -736,6 +741,7 @@
       els.mcqChoices.hidden = true;
       els.mcqResult.hidden = true;
       if (els.srsActions) els.srsActions.hidden = true;
+      if (els.srsActionsBasic) els.srsActionsBasic.hidden = true;
       renderSafe(els.back, 'Use the form below to add one');
       els.card.classList.toggle('flipped', state.showBack);
       els.pos.textContent = '0 / 0';
@@ -860,6 +866,10 @@
     }
     // Adjust card height for MCQ to fit content
     adjustCardHeight();
+    // For basic cards, show SRS actions only when back is visible
+    if ((c.type || 'basic') === 'basic') {
+      if (els.srsActionsBasic) els.srsActionsBasic.hidden = !state.showBack;
+    }
   }
 
   function enterEditTile(tile, card) {
@@ -1259,6 +1269,10 @@
     if (els.srsHard) els.srsHard.addEventListener('click', click('hard'));
     if (els.srsGood) els.srsGood.addEventListener('click', click('good'));
     if (els.srsEasy) els.srsEasy.addEventListener('click', click('easy'));
+    if (els.srsAgainBasic) els.srsAgainBasic.addEventListener('click', click('again'));
+    if (els.srsHardBasic) els.srsHardBasic.addEventListener('click', click('hard'));
+    if (els.srsGoodBasic) els.srsGoodBasic.addEventListener('click', click('good'));
+    if (els.srsEasyBasic) els.srsEasyBasic.addEventListener('click', click('easy'));
   }
 
   els.mcqCheck.addEventListener('click', checkMulti);

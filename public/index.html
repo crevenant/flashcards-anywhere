@@ -48,7 +48,17 @@
             </div>
           </div>
           </div>
-          <div id="card-back" class="face back"></div>
+          <div id="card-back" class="face back">
+          <!-- SRS actions for basic (flip) cards shown on the answer side -->
+          <div id="srs-actions-basic" class="choices-actions" hidden>
+            <div style="display:flex; gap:8px; justify-content:center;">
+              <button id="srs-again-basic" class="btn" title="Again (relearn)">Again</button>
+              <button id="srs-hard-basic" class="btn" title="Hard">Hard</button>
+              <button id="srs-good-basic" class="btn btn-primary" title="Good">Good</button>
+              <button id="srs-easy-basic" class="btn" title="Easy">Easy</button>
+            </div>
+          </div>
+          </div>
         </div>
         <div id="mcq-result" class="result" hidden></div>
         <div class="nav">
