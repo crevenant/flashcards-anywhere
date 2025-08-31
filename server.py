@@ -259,6 +259,40 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
                 timeout = int(rev[3] or 0)
                 avg_ms = int(rev[4]) if rev[4] is not None else None
                 last = rev[5]
+                # SRS summary counts
+                if deck_id is None:
+                    cur.execute(
+                        """
+                        SELECT
+                          SUM(CASE WHEN IFNULL(srs_type,'new')='new' THEN 1 ELSE 0 END) AS new_cnt,
+                          SUM(CASE WHEN srs_type='learn' THEN 1 ELSE 0 END) AS learn_cnt,
+                          SUM(CASE WHEN srs_type='review' THEN 1 ELSE 0 END) AS review_cnt,
+                          SUM(CASE WHEN srs_type='learn' AND srs_due IS NOT NULL AND srs_due <= datetime('now') THEN 1 ELSE 0 END) AS due_learn,
+                          SUM(CASE WHEN srs_type='review' AND srs_due IS NOT NULL AND srs_due <= datetime('now') THEN 1 ELSE 0 END) AS due_review
+                        FROM cards
+                        """
+                    )
+                else:
+                    cur.execute(
+                        """
+                        SELECT
+                          SUM(CASE WHEN IFNULL(c.srs_type,'new')='new' THEN 1 ELSE 0 END) AS new_cnt,
+                          SUM(CASE WHEN c.srs_type='learn' THEN 1 ELSE 0 END) AS learn_cnt,
+                          SUM(CASE WHEN c.srs_type='review' THEN 1 ELSE 0 END) AS review_cnt,
+                          SUM(CASE WHEN c.srs_type='learn' AND c.srs_due IS NOT NULL AND c.srs_due <= datetime('now') THEN 1 ELSE 0 END) AS due_learn,
+                          SUM(CASE WHEN c.srs_type='review' AND c.srs_due IS NOT NULL AND c.srs_due <= datetime('now') THEN 1 ELSE 0 END) AS due_review
+                        FROM cards c
+                        WHERE c.deck_id = ?
+                        """,
+                        (deck_id,)
+                    )
+                row_srs = cur.fetchone() or (0,0,0,0,0)
+                srs_new = int(row_srs[0] or 0)
+                srs_learn = int(row_srs[1] or 0)
+                srs_review = int(row_srs[2] or 0)
+                srs_due_learn = int(row_srs[3] or 0)
+                srs_due_review = int(row_srs[4] or 0)
+                srs_due_total = srs_new + srs_due_learn + srs_due_review
                 # per-card top list
                 if deck_id is None:
                     cur.execute("SELECT r.card_id, c.front, COUNT(*) as cnt, SUM(result='correct'), SUM(result='wrong'), SUM(result='timeout'), MAX(ts) FROM reviews r JOIN cards c ON c.id=r.card_id GROUP BY 1 ORDER BY cnt DESC LIMIT 100")
@@ -287,6 +321,14 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
                     "timeout": timeout,
                     "avg_duration_ms": avg_ms,
                     "last_ts": last,
+                    "srs": {
+                        "new": srs_new,
+                        "learn": srs_learn,
+                        "review": srs_review,
+                        "due_total": srs_due_total,
+                        "due_learn": srs_due_learn,
+                        "due_review": srs_due_review
+                    },
                     "per_card": per,
                 }).encode('utf-8'))
             finally:

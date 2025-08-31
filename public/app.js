@@ -1199,6 +1199,10 @@
       { label: 'Wrong', value: `${data.wrong || 0}` },
       { label: 'Timeout', value: `${data.timeout || 0}` },
       { label: 'Avg ms', value: `${data.avg_duration_ms != null ? Math.round(data.avg_duration_ms) : '-'}` },
+      { label: 'Due', value: `${(data.srs && data.srs.due_total) || 0}` },
+      { label: 'New', value: `${(data.srs && data.srs.new) || 0}` },
+      { label: 'Learn', value: `${(data.srs && data.srs.learn) || 0}` },
+      { label: 'Review', value: `${(data.srs && data.srs.review) || 0}` },
     ];
     items.forEach(it => { const box = document.createElement('div'); box.className = 'stat-box'; const v = document.createElement('div'); v.className = 'value'; v.textContent = it.value; box.appendChild(v); const l = document.createElement('div'); l.className = 'label'; l.textContent = it.label; box.appendChild(l); els.statsSummary.appendChild(box); });
     // Store per-card and render current page
