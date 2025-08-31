@@ -63,6 +63,7 @@
     toggleAddBtn: document.getElementById('toggle-add-btn'),
     toggleDecksBtn: document.getElementById('toggle-decks-btn'),
     toggleCardsBtn: document.getElementById('toggle-cards-btn'),
+    toggleStatsBtn: document.getElementById('toggle-stats-btn'),
     card: document.getElementById('card'),
     front: document.getElementById('card-front'),
     frontText: document.getElementById('front-text'),
@@ -95,6 +96,9 @@
     deckAddForm: document.getElementById('deck-add-form'),
     deckNewInput: document.getElementById('deck-new-input'),
     cardsSection: document.getElementById('cards-section'),
+    statsSection: document.getElementById('stats-section'),
+    statsSummary: document.getElementById('stats-summary'),
+    statsList: document.getElementById('stats-list'),
     cardsTbody: document.getElementById('cards-tbody'),
     cardsList: document.getElementById('cards-list'),
     cardsPrev: document.getElementById('cards-prev'),
@@ -127,6 +131,7 @@
     showAdder: false,
     showDecks: false,
     showCards: false,
+    showStats: false,
     lastCardId: null,
     choiceOrder: null, // array mapping displayed index -> original index for current MCQ card
     deckMap: {},
@@ -308,7 +313,7 @@
   }
 
   function updateViewerVisibility() {
-    const anyOpen = !!(state.showAdder || state.showDecks || state.showCards);
+    const anyOpen = !!(state.showAdder || state.showDecks || state.showCards || state.showStats);
     if (els.viewerSection) els.viewerSection.hidden = anyOpen;
   }
   const DELAY_MS = 1200; // delay before reset/advance
@@ -1125,6 +1130,24 @@
     renderCard();
     state.cardsPage = 1;
     renderCardsTable();
+    if (state.showStats) await renderStats();
+  }
+
+  async function renderStats() {
+    if (!els.statsSummary || !els.statsList) return;
+    const data = await (async ()=>{ try { return await api.stats(state.deckName); } catch(e){ return { total_cards: 0, reviewed_cards: 0, total_reviews: 0, correct:0, wrong:0, timeout:0, per_card: [] }; } })();
+    els.statsSummary.innerHTML = '';
+    const items = [
+      { label: 'Cards', value: `${data.reviewed_cards || 0} / ${data.total_cards || 0}` },
+      { label: 'Reviews', value: `${data.total_reviews || 0}` },
+      { label: 'Correct', value: `${data.correct || 0}` },
+      { label: 'Wrong', value: `${data.wrong || 0}` },
+      { label: 'Timeout', value: `${data.timeout || 0}` },
+      { label: 'Avg ms', value: `${data.avg_duration_ms != null ? Math.round(data.avg_duration_ms) : '-'}` },
+    ];
+    items.forEach(it => { const box = document.createElement('div'); box.className = 'stat-box'; const v = document.createElement('div'); v.className = 'value'; v.textContent = it.value; box.appendChild(v); const l = document.createElement('div'); l.className = 'label'; l.textContent = it.label; box.appendChild(l); els.statsSummary.appendChild(box); });
+    els.statsList.innerHTML = '';
+    (data.per_card || []).forEach(row => { const div = document.createElement('div'); div.className = 'stats-row'; const front = document.createElement('div'); front.className = 'front'; renderSafe(front, row.front || ''); div.appendChild(front); const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `Total ${row.total} • Correct ${row.correct} • Wrong ${row.wrong} • Timeout ${row.timeout}`; div.appendChild(meta); els.statsList.appendChild(div); });
   }
 
   // Events
@@ -1246,6 +1269,21 @@
     try { state.showCards = localStorage.getItem('showCards') === '1'; } catch {}
     setCardsVisible(state.showCards);
     window.setCardsVisible = setCardsVisible;
+  }
+  if (els.toggleStatsBtn) {
+    const setStatsVisible = async (show) => {
+      state.showStats = !!show;
+      if (els.statsSection) els.statsSection.hidden = !state.showStats;
+      els.toggleStatsBtn.classList.toggle('active', state.showStats);
+      els.toggleStatsBtn.setAttribute('aria-pressed', state.showStats ? 'true' : 'false');
+      updateViewerVisibility();
+      if (state.showStats) await renderStats();
+      try { localStorage.setItem('showStats', state.showStats ? '1' : '0'); } catch {}
+    };
+    els.toggleStatsBtn.addEventListener('click', () => setStatsVisible(!state.showStats));
+    try { state.showStats = localStorage.getItem('showStats') === '1'; } catch {}
+    setStatsVisible(state.showStats);
+    window.setStatsVisible = setStatsVisible;
   }
   if (els.cardsPrev) els.cardsPrev.addEventListener('click', () => { state.cardsPage = Math.max(1, state.cardsPage - 1); renderCardsTable(); });
   if (els.cardsNext) els.cardsNext.addEventListener('click', () => { state.cardsPage = state.cardsPage + 1; renderCardsTable(); });

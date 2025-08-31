@@ -184,6 +184,71 @@ class ApiAndStaticHandler(SimpleHTTPRequestHandler):
     # ---- API handlers ----
     def handle_api_get(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/stats':
+            qs = parse_qs(parsed.query or '')
+            deck = qs.get('deck', [None])[0]
+            conn = get_connection()
+            try:
+                cur = conn.cursor()
+                if deck:
+                    cur.execute("SELECT id FROM decks WHERE name = ?", (deck,))
+                    row = cur.fetchone()
+                    deck_id = row[0] if row else None
+                else:
+                    deck_id = None
+                # totals
+                if deck_id is None:
+                    cur.execute("SELECT COUNT(*) FROM cards")
+                    total_cards = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(DISTINCT card_id) FROM reviews")
+                    reviewed_cards = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(*), SUM(result='correct'), SUM(result='wrong'), SUM(result='timeout'), AVG(duration_ms), MAX(ts) FROM reviews")
+                else:
+                    cur.execute("SELECT COUNT(*) FROM cards WHERE deck_id = ?", (deck_id,))
+                    total_cards = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(DISTINCT r.card_id) FROM reviews r JOIN cards c ON c.id=r.card_id WHERE c.deck_id = ?", (deck_id,))
+                    reviewed_cards = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(*), SUM(result='correct'), SUM(result='wrong'), SUM(result='timeout'), AVG(duration_ms), MAX(ts) FROM reviews r JOIN cards c ON c.id=r.card_id WHERE c.deck_id = ?", (deck_id,))
+                rev = cur.fetchone() or (0,0,0,0,None,None)
+                total_reviews = int(rev[0] or 0)
+                correct = int(rev[1] or 0)
+                wrong = int(rev[2] or 0)
+                timeout = int(rev[3] or 0)
+                avg_ms = int(rev[4]) if rev[4] is not None else None
+                last = rev[5]
+                # per-card top list
+                if deck_id is None:
+                    cur.execute("SELECT r.card_id, c.front, COUNT(*) as cnt, SUM(result='correct'), SUM(result='wrong'), SUM(result='timeout'), MAX(ts) FROM reviews r JOIN cards c ON c.id=r.card_id GROUP BY 1 ORDER BY cnt DESC LIMIT 100")
+                else:
+                    cur.execute("SELECT r.card_id, c.front, COUNT(*) as cnt, SUM(result='correct'), SUM(result='wrong'), SUM(result='timeout'), MAX(ts) FROM reviews r JOIN cards c ON c.id=r.card_id WHERE c.deck_id = ? GROUP BY 1 ORDER BY cnt DESC LIMIT 100", (deck_id,))
+                rows = cur.fetchall() or []
+                per = []
+                for r in rows:
+                    per.append({
+                        "card_id": r[0],
+                        "front": r[1],
+                        "total": int(r[2] or 0),
+                        "correct": int(r[3] or 0),
+                        "wrong": int(r[4] or 0),
+                        "timeout": int(r[5] or 0),
+                        "last_ts": r[6],
+                    })
+                self._set_json_headers()
+                self.wfile.write(json.dumps({
+                    "deck": deck,
+                    "total_cards": total_cards,
+                    "reviewed_cards": reviewed_cards,
+                    "total_reviews": total_reviews,
+                    "correct": correct,
+                    "wrong": wrong,
+                    "timeout": timeout,
+                    "avg_duration_ms": avg_ms,
+                    "last_ts": last,
+                    "per_card": per,
+                }).encode('utf-8'))
+            finally:
+                conn.close()
+            return
         # Per-card aggregated stats
         mstats = re.match(r"^/api/cards/(\d+)/stats$", parsed.path or "")
         if mstats:

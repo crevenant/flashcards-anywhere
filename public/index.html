@@ -21,6 +21,7 @@
         <button id="toggle-decks-btn" class="btn" aria-pressed="false" title="Show/Hide Decks">Decks</button>
         <button id="toggle-cards-btn" class="btn" aria-pressed="false" title="Show/Hide Card Browser">Cards</button>
         <button id="toggle-add-btn" class="btn" aria-pressed="false" title="Show/Hide Add Card">Add Card</button>
+        <button id="toggle-stats-btn" class="btn" aria-pressed="false" title="Show/Hide Statistics">Stats</button>
         
       </div>
     </header>
@@ -173,6 +174,15 @@ Option C" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete
             </div>
           </aside>
         </div>
+      </section>
+
+      <section id="stats-section" class="adder" hidden>
+        <div class="adder-header">
+          <h2>Statistics</h2>
+          <p class="muted">Review performance for the selected deck.</p>
+        </div>
+        <div id="stats-summary" class="stats-summary"></div>
+        <div id="stats-list" class="stats-list"></div>
       </section>
     </main>
 

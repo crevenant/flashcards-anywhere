@@ -255,6 +255,16 @@ main {
 .mini-card .mini-choice { border: 1px dashed #1f2937; border-radius: 8px; padding: 6px; font-size: 16px; }
 .mini-card .mini-label { font-size: 11px; color: #93a1b3; margin-top: 6px; }
 .mini-card .mini-choice.correct { border-color: #16a34a; color: #16a34a; }
+
+/* Stats view */
+.stats-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.stat-box { border: 1px solid #1f2937; border-radius: 10px; padding: 10px; background: #0b1225; text-align: center; }
+.stat-box .label { color: var(--muted); font-size: 12px; }
+.stat-box .value { font-size: 20px; font-weight: 600; }
+.stats-list { display: grid; gap: 8px; }
+.stats-row { border: 1px solid #1f2937; border-radius: 10px; padding: 10px; background: #0b1225; display: grid; gap: 6px; }
+.stats-row .front { font-size: 16px; }
+.stats-row .meta { color: var(--muted); font-size: 12px; display: flex; gap: 10px; }
 .preview-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .preview-body { display: grid; gap: 12px; }
 .preview-block .label { font-size: 12px; margin-bottom: 4px; }
