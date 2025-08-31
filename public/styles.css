@@ -204,7 +204,7 @@ main {
   tab-size: 2;
   caret-color: var(--accent);
 }
-.adder .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.adder .row { display: grid; grid-template-columns: 1fr; gap: 10px; }
 #single-answer-row, #multi-answer-row { grid-template-columns: 1fr; }
 #single-answer-row > label, #multi-answer-row > label { grid-column: 1 / -1; }
 .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
