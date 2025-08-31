@@ -2,23 +2,64 @@ import json
 import os
 import re
 import sqlite3
+import shutil
 import tempfile
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 from functools import partial
 
-# Prefer an explicit DB_PATH env var; otherwise use a temp dir to
-# avoid write restrictions in some sandboxes on the workspace folder.
-DB_PATH = os.environ.get('DB_PATH') or os.path.join(tempfile.gettempdir(), 'flashcards.db')
-PUBLIC_DIR = os.path.join(os.path.dirname(__file__), 'public')
+BASE_DIR = os.path.dirname(__file__)
+PUBLIC_DIR = os.path.join(BASE_DIR, 'public')
+
+# Prefer an explicit DB_PATH env var; otherwise use a project-local path.
+# Old versions defaulted to a temp dir; we migrate from there on first run.
+DEFAULT_DB_PATH = os.path.join(BASE_DIR, 'data', 'flashcards.db')
+DB_PATH = os.environ.get('DB_PATH') or DEFAULT_DB_PATH
+
+
+def _ensure_db_path_and_migrate():
+    # Ensure parent directory exists if DB_PATH includes one
+    parent = os.path.dirname(DB_PATH)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+
+    # If using the new default path and it doesn't exist yet, but the old temp file does,
+    # copy it over so existing data is preserved.
+    if DB_PATH == DEFAULT_DB_PATH and not os.path.exists(DB_PATH):
+        old_temp_db = os.path.join(tempfile.gettempdir(), 'flashcards.db')
+        try:
+            if os.path.exists(old_temp_db):
+                shutil.copy2(old_temp_db, DB_PATH)
+        except Exception:
+            # Best-effort migration; ignore failures and create fresh DB later.
+            pass
+
+
+_fallback_warned = False
 
 
 def get_connection():
-    return sqlite3.connect(DB_PATH)
+    global DB_PATH, _fallback_warned
+    try:
+        return sqlite3.connect(DB_PATH)
+    except sqlite3.OperationalError:
+        # If default local path is not writable (e.g., restricted env), fall back to temp.
+        if DB_PATH == DEFAULT_DB_PATH:
+            DB_PATH = os.path.join(tempfile.gettempdir(), 'flashcards.db')
+            try:
+                os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+            except Exception:
+                pass
+            if not _fallback_warned:
+                print(f"Warning: Could not open local DB, falling back to temp: {DB_PATH}")
+                _fallback_warned = True
+            return sqlite3.connect(DB_PATH)
+        raise
 
 
 def init_db():
+    _ensure_db_path_and_migrate()
     conn = get_connection()
     try:
         cur = conn.cursor()

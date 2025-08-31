@@ -31,9 +31,10 @@ API (Quick Reference)
 
 Notes
 -----
-- On first run, a `flashcards.db` is created with a `Default` deck and a few sample cards.
+- On first run, a project‑local database is created at `data/flashcards.db` with a `Default` deck and a few sample cards.
+- Existing databases from older runs (stored in a temp folder) are copied into `data/flashcards.db` on first startup when present.
 - To change port, set `PORT` env var before running (e.g., `PORT=3000`).
-- To change DB location, set `DB_PATH` to a writable path. By default the server uses a temp folder in restricted environments.
+- To change DB location, set `DB_PATH` to a writable path; it overrides the default `data/flashcards.db`.
 
 HTML Rendering
 --------------
