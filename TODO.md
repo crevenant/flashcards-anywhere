@@ -1,6 +1,6 @@
-- [X] Fix Codex
-- [X] Add Auto-advance
-- [X] Setup card statistics
-- [X] FavIcon
+- [x] Fix Codex
+- [x] Add Auto-advance
+- [x] Setup card statistics
+- [x] FavIcon
 - [ ] Minimum card size
 - [ ] Optimize code
