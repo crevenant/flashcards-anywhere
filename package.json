@@ -4,15 +4,44 @@
 	"description": "Flashcards Anywhere Electron app",
 	"main": "main.js",
 	"scripts": {
-		"start:server": "node server.js",
-		"start:electron": "electron .",
-		"start:all": "concurrently \"npm run start:server\" \"npm run start:electron\"",
-		"start": "npm run start:all",
-		"test": "jest"
-	},
-	"devDependencies": {
+	 "start:server": "node server.js",
+	 "start:electron": "electron .",
+	 "start:all": "concurrently \"npm run start:server\" \"npm run start:electron\"",
+	 "start": "npm run start:all",
+	 "test": "jest",
+	 "build:win": "electron-builder --win --x64",
+	 "build:mac": "electron-builder --mac --x64",
+	 "build:linux": "electron-builder --linux --x64",
+	 "build": "electron-builder --dir"
+		},
+		"build": {
+		"appId": "com.flashcards.anywhere",
+		"productName": "Flashcards Anywhere",
+		"files": [
+			"main.js",
+			"server.js",
+			"public/**/*",
+			"data/**/*",
+			"node_modules/**/*",
+			"package.json"
+		],
+		"directories": {
+			"buildResources": "public"
+		},
+		"win": {
+			"target": "nsis"
+		},
+		"mac": {
+			"target": "dmg"
+		},
+		"linux": {
+			"target": "AppImage"
+		}
+		},
+		"devDependencies": {
 		"concurrently": "^8.2.2",
 		"electron": "^30.0.0",
+		"electron-builder": "^26.0.12",
 		"jest": "^30.1.2",
 		"prettier": "^3.6.2",
 		"supertest": "^7.1.4"
