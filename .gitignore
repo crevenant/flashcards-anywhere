@@ -26,6 +26,19 @@ tmp/
 # Runtime outputs
 logs/
 
+
+# Node/Electron
+node_modules/
+npm-debug.log*
+dist/
+*.asar
+
+# Frontend build artifacts
+public/*.map
+
+# SQLite DB (keep if you want to ignore only the DB file, not the folder)
+data/flashcards.db
+
 data/
 
 COMMIT_MSG.txt
