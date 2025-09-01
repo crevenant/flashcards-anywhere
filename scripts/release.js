@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-env node */
 // Usage: node release.js <new_version>
 // Example: node release.js 1.0.4
 

@@ -1,3 +1,14 @@
+/* eslint-env node */
+// Global error handlers for debugging silent exits
+process.on('uncaughtException', (err) => {
+	console.error('[Global Error] Uncaught Exception:', err);
+	process.exit(1);
+});
+process.on('unhandledRejection', (reason, promise) => {
+	console.error('[Global Error] Unhandled Rejection:', reason);
+	process.exit(1);
+});
+console.log('Starting server.js...');
 // Flashcards Anywhere backend server
 // Express app serving REST API and static frontend for flashcard management
 const express = require('express');
@@ -13,11 +24,23 @@ const DB_PATH = path.join(__dirname, 'data', 'flashcards.db');
 
 // Ensure the SQLite database exists before starting
 if (!fs.existsSync(DB_PATH)) {
-	throw new Error('Database file not found: ' + DB_PATH);
+	console.error('[Backend Startup Error] Database file not found:', DB_PATH);
+	process.exit(1);
 }
 
 // Connect to SQLite database
-const db = new sqlite3.Database(DB_PATH);
+let db;
+try {
+	db = new sqlite3.Database(DB_PATH, (err) => {
+		if (err) {
+			console.error('[Backend Startup Error] Failed to connect to database:', err.message);
+			process.exit(1);
+		}
+	});
+} catch (e) {
+	console.error('[Backend Startup Error] Exception during DB connect:', e);
+	process.exit(1);
+}
 
 // Middleware: parse JSON request bodies and serve static frontend files
 app.use(bodyParser.json());
@@ -252,7 +275,12 @@ app.get('/api/stats', (req, res) => {
 // Start the server only if run directly (not during tests)
 // This allows the app to be imported for testing without starting the server
 if (require.main === module) {
-	app.listen(PORT, () => {
+	console.log('Reached listen block');
+	app.listen(PORT, (err) => {
+		if (err) {
+			console.error('[Backend Startup Error] Failed to start server:', err);
+			process.exit(1);
+		}
 		console.log(`Flashcards Anywhere Node server running at http://localhost:${PORT}`);
 	});
 }
