@@ -1,3 +1,5 @@
+// Use utilities attached to window (see below for attaching them)
+
 (() => {
 	// Robust Electron detection for all Electron versions/contexts
 	// Fallback: if loaded as file://, assume Electron and use localhost backend
@@ -19,188 +21,7 @@
 		mcqChoices: document.getElementById('mcq-choices'),
 		mcqResult: document.getElementById('mcq-result'),
 		srsActions: document.getElementById('srs-actions'),
-		srsActionsBasic: document.getElementById('srs-actions-basic'),
-		pos: document.getElementById('pos'),
-		cardTimer: document.getElementById('card-timer'),
-		cardTimerProgress: document.getElementById('card-timer-progress'),
-		viewerSection: document.querySelector('section.viewer'),
-		autoAdvBtn: document.getElementById('auto-adv-btn'),
-		timerBtn: document.getElementById('timer-btn'),
-		// ...add other elements as needed...
 	};
-
-	// Application state
-	/**
-	 * Application state object. Tracks UI, card, and timer state.
-	 * @type {Object}
-	 */
-	const state = {
-		cards: [],
-		idx: 0,
-		showBack: false,
-		deckName: '',
-		selected: null,
-		correct: null,
-		resetTimer: null,
-		multiSelected: new Set(),
-		multiChecked: false,
-		showAdder: false,
-		showDecks: false,
-		showCards: false,
-		showStats: false,
-		showSettings: false,
-		statsPage: 1,
-		statsPerPage: 5,
-		statsPerCard: [],
-		srsMode: false,
-		lastCardId: null,
-		choiceOrder: null,
-		deckMap: {},
-		cardsPage: 1,
-		cardsPerPage: 5,
-		cardsFilter: '',
-		timerEnabled: false,
-		autoAdvanceEnabled: false,
-		timerDurationMs: 10000,
-		autoAdvanceDelayMs: 5000,
-		timerStart: null,
-		timerRAF: null,
-		timerHold: false,
-		timeoutReveal: false,
-		autoAdvanceTimer: null,
-		autoAdvanceStart: null,
-		autoAdvanceRAF: null,
-		viewStart: null,
-		logged: false,
-	};
-
-
-	/**
-	 * API methods for backend communication (to be defined).
-	 * @type {Object}
-	 */
-	const api = {
-		// ...define API methods here as properties...
-	};
-
-	/**
-	 * Clears the card timer and hides timer UI.
-	 */
-	function clearCardTimer() {
-		if (state.timerRAF) {
-			cancelAnimationFrame(state.timerRAF);
-			state.timerRAF = null;
-		}
-		state.timerStart = null;
-		if (els.cardTimer) els.cardTimer.hidden = true;
-		if (els.cardTimerProgress) els.cardTimerProgress.style.width = '0%';
-		// Keep auto-advance in sync with manual timer clearing
-		clearAutoAdvance();
-	}
-
-	/**
-	 * Starts the card timer and updates progress bar. Reveals answer on timeout.
-	 */
-	function startCardTimer() {
-		clearCardTimer();
-		if (!state.timerEnabled || !els.viewerSection || els.viewerSection.hidden) return;
-		if (!els.cardTimer || !els.cardTimerProgress) return;
-		els.cardTimer.hidden = false;
-		state.timerStart = performance.now();
-		const duration = state.timerDurationMs;
-		const tick = (now) => {
-			const elapsed = now - state.timerStart;
-			const pct = Math.max(0, Math.min(1, elapsed / duration));
-			els.cardTimerProgress.style.width = (pct * 100).toFixed(2) + '%';
-			if (pct < 1) {
-				state.timerRAF = requestAnimationFrame(tick);
-			} else {
-				// Give a moment to show the bar filled, then clear timer UI only
-				setTimeout(() => {
-					if (els.cardTimer) els.cardTimer.hidden = true;
-					if (els.cardTimerProgress) els.cardTimerProgress.style.width = '0%';
-					state.timerStart = null;
-					state.timerRAF = null;
-				}, 300);
-				// Time's up: reveal the correct answer; do not auto-advance
-				const c = state.cards[state.idx];
-				if (!c) return;
-				// Prevent auto-restarting the timer during reveal rerenders
-				state.timerHold = true;
-				state.timeoutReveal = true;
-				if ((c.type || 'basic') === 'basic') {
-					// Flip to back and show; wait for user to move next
-					state.showBack = true;
-					renderCard();
-					clearTimer();
-				} else if ((c.type || 'basic') === 'mcq') {
-					if (c.multi) {
-						// Show all correct answers
-						state.multiChecked = true;
-						state.correct = false; // label as not correct (time ran out)
-						renderCard();
-					} else {
-						// Highlight the correct choice
-						const order = state.choiceOrder || (c.choices || []).map((_, i) => i);
-						const dispIdx = order.findIndex((orig) => orig === c.answer);
-						if (dispIdx >= 0) {
-							state.selected = dispIdx;
-							state.correct = true; // highlight as correct
-						}
-						renderCard();
-					}
-					clearTimer();
-					// Keep result visible; wait for user to move next
-					// timerHold stays true to avoid auto-restarting timer during reveal
-				}
-			}
-		};
-		state.timerRAF = requestAnimationFrame(tick);
-	}
-
-	/**
-	 * Starts the auto-advance timer and progress bar for moving to next card.
-	 */
-	function startAutoAdvance() {
-		clearAutoAdvance();
-		if (!state.autoAdvanceEnabled) return;
-		if (!els.viewerSection || els.viewerSection.hidden) return;
-		// Actual triggering condition is checked by shouldAutoAdvanceFromState()
-		state.autoAdvanceTimer = setTimeout(() => {
-			if (!state.autoAdvanceEnabled) return;
-			if (els.viewerSection && els.viewerSection.hidden) return;
-			next();
-		}, state.autoAdvanceDelayMs);
-		// Show progress bar in result panel (MCQ only) if visible
-		ensureAutoAdvProgressUI();
-		state.autoAdvanceStart = performance.now();
-		const delay = state.autoAdvanceDelayMs;
-		const tick = (now) => {
-			const el = document.getElementById('auto-adv-progress-bar');
-			if (!el) {
-				state.autoAdvanceRAF = null;
-				return;
-			}
-			const elapsed = now - (state.autoAdvanceStart || now);
-			const pct = Math.max(0, Math.min(1, elapsed / delay));
-			el.style.width = (pct * 100).toFixed(2) + '%';
-			// tint from amber (38deg) to green (140deg)
-			const hue = 38 + (140 - 38) * pct;
-			el.style.background = `hsl(${hue.toFixed(0)} 80% 50%)`;
-			// Update Auto-Advance button countdown (5 → 0)
-			if (els.autoAdvBtn && state.autoAdvanceEnabled) {
-				const remaining = Math.max(0, delay - elapsed);
-				const secs = Math.ceil(remaining / 1000);
-				els.autoAdvBtn.textContent = `Auto-Advance ${secs}s`;
-			}
-			if (pct < 1) {
-				state.autoAdvanceRAF = requestAnimationFrame(tick);
-			} else {
-				state.autoAdvanceRAF = null;
-			}
-		};
-		state.autoAdvanceRAF = requestAnimationFrame(tick);
-	}
 
 	/**
 	 * Ensures the auto-advance progress bar UI is present in the DOM.
@@ -1108,26 +929,23 @@
 		clearCardTimer();
 	}
 
-	function shuffle() {
-		for (let i = state.cards.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[state.cards[i], state.cards[j]] = [state.cards[j], state.cards[i]];
-		}
-		state.idx = 0;
-		state.showBack = false;
-		state.selected = null;
-		state.correct = null;
-		state.multiSelected.clear();
-		state.multiChecked = false;
-		state.timeoutReveal = false;
-		state.timerHold = false;
-		clearTimer();
-		clearCardTimer();
-		els.card.classList.add('instant');
-		renderCard();
-		requestAnimationFrame(() => els.card.classList.remove('instant'));
-		clearCardTimer();
-	}
+	   function shuffle() {
+		   if (window.shuffle) window.shuffle(state.cards);
+		   state.idx = 0;
+		   state.showBack = false;
+		   state.selected = null;
+		   state.correct = null;
+		   state.multiSelected.clear();
+		   state.multiChecked = false;
+		   state.timeoutReveal = false;
+		   state.timerHold = false;
+		   clearTimer();
+		   clearCardTimer();
+		   els.card.classList.add('instant');
+		   renderCard();
+		   requestAnimationFrame(() => els.card.classList.remove('instant'));
+		   clearCardTimer();
+	   }
 
 	function selectChoice(i) {
 		const c = state.cards[state.idx];
