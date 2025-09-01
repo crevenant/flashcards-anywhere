@@ -42,3 +42,4 @@ data/flashcards.db
 data/
 
 COMMIT_MSG.txt
+node_modules
