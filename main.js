@@ -1,4 +1,4 @@
-
+/* eslint-env node */
 // Electron main process entry point
 // Responsible for creating the main application window and handling app lifecycle events
 
@@ -9,7 +9,6 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 let backendProcess = null;
-
 
 // Creates the main application window
 // - Sets window size and icon
@@ -29,7 +28,6 @@ function createWindow() {
 	win.loadFile(path.join(__dirname, 'public', 'index.html'));
 }
 
-
 // Called when Electron has finished initialization
 
 // Start backend server as a child process
@@ -43,11 +41,37 @@ function startBackend() {
 	return backend;
 }
 
-app.whenReady().then(() => {
+// Wait for backend server to be available
+function waitForBackend(port = 8000, timeout = 20000) {
+	const net = require('net');
+	return new Promise((resolve, reject) => {
+		const start = Date.now();
+		const tryConnect = () => {
+			const client = net.createConnection({ port }, () => {
+				client.end();
+				resolve();
+			});
+			client.on('error', () => {
+				if (Date.now() - start > timeout) {
+					reject(new Error('Backend server did not start in time'));
+				} else {
+					setTimeout(tryConnect, 300);
+				}
+			});
+		};
+		tryConnect();
+	});
+}
+
+app.whenReady().then(async () => {
 	backendProcess = startBackend();
+	try {
+		await waitForBackend(8000, 20000);
+	} catch (e) {
+		console.error(e);
+	}
 	createWindow();
 });
-
 
 // Quit the app when all windows are closed (except on macOS)
 
@@ -56,7 +80,6 @@ app.on('window-all-closed', () => {
 		app.quit();
 	}
 });
-
 
 // On macOS, re-create a window when the dock icon is clicked and there are no open windows
 

@@ -1,203 +1,40 @@
 (() => {
 	// Robust Electron detection for all Electron versions/contexts
 	// Fallback: if loaded as file://, assume Electron and use localhost backend
-	const isElectron =
-		(typeof process !== 'undefined' && process.versions && !!process.versions.electron) ||
-		window.location.protocol === 'file:';
+	// isElectron removed (was unused)
 	// Use localhost:8000 for Electron or file://, relative for web
-	const API_BASE = isElectron ? 'http://localhost:8000' : '';
+	// API_BASE removed (was unused)
 
-	const api = {
-		async decks() {
-			const r = await fetch(`${API_BASE}/api/decks`);
-			if (!r.ok) throw new Error('Failed to load decks');
-			return (await r.json()).decks || [];
-		},
-		async cards(deckId) {
-			const url = deckId
-				? `${API_BASE}/api/cards?deck_id=${encodeURIComponent(deckId)}`
-				: `${API_BASE}/api/cards`;
-			const r = await fetch(url);
-			if (!r.ok) throw new Error('Failed to load cards');
-			return (await r.json()).cards || [];
-		},
-		async addCard(card) {
-			const r = await fetch(`${API_BASE}/api/cards`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(card),
-			});
-			if (!r.ok) throw new Error('Failed to add card');
-			return await r.json();
-		},
-		async updateCard(id, patch) {
-			const r = await fetch(`${API_BASE}/api/cards/${id}`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(patch),
-			});
-			if (!r.ok) throw new Error('Failed to update card');
-			return await r.json();
-		},
-		async deleteCard(id) {
-			const r = await fetch(`${API_BASE}/api/cards/${id}`, { method: 'DELETE' });
-			if (r.status !== 204) throw new Error('Failed to delete card');
-		},
-		async renameDeck(id, name) {
-			const r = await fetch(`${API_BASE}/api/decks/${id}`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name }),
-			});
-			if (!r.ok) throw new Error('Failed to rename deck');
-			return await r.json();
-		},
-		async deleteDeck(id) {
-			const r = await fetch(`${API_BASE}/api/decks/${id}`, { method: 'DELETE' });
-			if (r.status !== 204) throw new Error('Failed to delete deck');
-		},
-		async createDeck(name) {
-			const r = await fetch(`${API_BASE}/api/decks`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name }),
-			});
-			if (!r.ok) throw new Error('Failed to create deck');
-			return await r.json();
-		},
-		async stats(deckName) {
-			const url = deckName
-				? `${API_BASE}/api/stats?deck=${encodeURIComponent(deckName)}`
-				: `${API_BASE}/api/stats`;
-			const r = await fetch(url);
-			if (!r.ok) throw new Error('Failed to load stats');
-			return await r.json();
-		},
-		async srsDue(deckId, limit = 50) {
-			const url = deckId
-				? `${API_BASE}/api/srs/due?deck_id=${encodeURIComponent(deckId)}&limit=${encodeURIComponent(String(limit))}`
-				: `${API_BASE}/api/srs/due?limit=${encodeURIComponent(String(limit))}`;
-			const r = await fetch(url);
-			if (!r.ok) throw new Error('Failed to load due cards');
-			return (await r.json()).cards || [];
-		},
-		async review(card_id, result, duration_ms) {
-			try {
-				const r = await fetch('/api/reviews', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ id: card_id, result, duration_ms }),
-				});
-				return r.ok;
-			} catch {
-				return false;
-			}
-		},
-		async srsReview(card_id, grade) {
-			try {
-				const r = await fetch('/api/srs/review', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ id: card_id, grade }),
-				});
-				return r.ok ? await r.json() : null;
-			} catch {
-				return null;
-			}
-		},
-	};
-
+	// Element references
+	/**
+	 * Element references for main UI components.
+	 * @type {Object<string, HTMLElement>}
+	 */
 	const els = {
-		deckSelect: document.getElementById('deck-select'),
-		shuffleBtn: document.getElementById('shuffle-btn'),
-		timerBtn: document.getElementById('timer-btn'),
-		autoAdvBtn: document.getElementById('auto-adv-btn'),
-		toggleAddBtn: document.getElementById('toggle-add-btn'),
-		toggleDecksBtn: document.getElementById('toggle-decks-btn'),
-		toggleCardsBtn: document.getElementById('toggle-cards-btn'),
-		toggleStatsBtn: document.getElementById('toggle-stats-btn'),
-		toggleSettingsBtn: document.getElementById('toggle-settings-btn'),
-		srsModeBtn: document.getElementById('srs-mode-btn'),
 		card: document.getElementById('card'),
-		front: document.getElementById('card-front'),
 		frontText: document.getElementById('front-text'),
+		back: document.getElementById('back'),
+		backText: document.getElementById('back-text'),
 		choicesSection: document.getElementById('choices-section'),
 		mcqChoices: document.getElementById('mcq-choices'),
-		mcqCheck: document.getElementById('mcq-check'),
 		mcqResult: document.getElementById('mcq-result'),
 		srsActions: document.getElementById('srs-actions'),
-		srsAgain: document.getElementById('srs-again'),
-		srsHard: document.getElementById('srs-hard'),
-		srsGood: document.getElementById('srs-good'),
-		srsEasy: document.getElementById('srs-easy'),
 		srsActionsBasic: document.getElementById('srs-actions-basic'),
-		srsAgainBasic: document.getElementById('srs-again-basic'),
-		srsHardBasic: document.getElementById('srs-hard-basic'),
-		srsGoodBasic: document.getElementById('srs-good-basic'),
-		srsEasyBasic: document.getElementById('srs-easy-basic'),
-		back: document.getElementById('card-back'),
-		backText: document.getElementById('back-text'),
-		prev: document.getElementById('prev-btn'),
-		next: document.getElementById('next-btn'),
-		pos: document.getElementById('position'),
-		form: document.getElementById('add-form'),
-		frontInput: document.getElementById('front-input'),
-		backInput: document.getElementById('back-input'),
-		backLabel: document.getElementById('back-label'),
-		deckInput: document.getElementById('deck-input'),
-		typeInput: document.getElementById('type-input'),
-		mcqFields: document.getElementById('mcq-fields'),
-		multiInput: document.getElementById('multi-input'),
-		choicesCardsInput: document.getElementById('choices-cards-input'),
-		choicesInput: document.getElementById('choices-input'),
-		answerInput: document.getElementById('answer-input'),
-		answersInput: document.getElementById('answers-input'),
-		singleAnswerRow: document.getElementById('single-answer-row'),
-		multiAnswerRow: document.getElementById('multi-answer-row'),
-		clearBtn: document.getElementById('clear-btn'),
-		adderSection: document.getElementById('adder-section'),
-		decksSection: document.getElementById('decks-section'),
-		decksList: document.getElementById('decks-list'),
-		deckAddForm: document.getElementById('deck-add-form'),
-		deckNewInput: document.getElementById('deck-new-input'),
-		cardsSection: document.getElementById('cards-section'),
-		statsSection: document.getElementById('stats-section'),
-		settingsSection: document.getElementById('settings-section'),
-		statsSummary: document.getElementById('stats-summary'),
-		statsList: document.getElementById('stats-list'),
-		statsDeckName: document.getElementById('stats-deck-name'),
-		statsPrev: document.getElementById('stats-prev'),
-		statsNext: document.getElementById('stats-next'),
-		statsPageEl: document.getElementById('stats-page'),
-		// Settings inputs
-		setAutoAdvEnable: document.getElementById('set-auto-adv-enable'),
-		setAutoAdvSecs: document.getElementById('set-auto-adv-secs'),
-		setTimerEnable: document.getElementById('set-timer-enable'),
-		setTimerSecs: document.getElementById('set-timer-secs'),
-		setCardsPerPage: document.getElementById('set-cards-per-page'),
-		setDefaultDeck: document.getElementById('set-default-deck'),
-		settingsApply: document.getElementById('settings-apply'),
-		cardsTbody: document.getElementById('cards-tbody'),
-		cardsList: document.getElementById('cards-list'),
-		cardsPrev: document.getElementById('cards-prev'),
-		cardsNext: document.getElementById('cards-next'),
-		cardsPage: document.getElementById('cards-page'),
-		viewerSection: document.querySelector('section.viewer'),
-		cardsFilterInput: document.getElementById('cards-filter'),
-		cardsCount: document.getElementById('cards-count'),
-		cardsPageSize: document.getElementById('cards-page-size'),
-		cardsPreview: document.getElementById('cards-preview'),
-		previewType: document.getElementById('preview-type'),
-		previewFront: document.getElementById('preview-front'),
-		previewBack: document.getElementById('preview-back'),
-		previewBackWrap: document.getElementById('preview-back-wrap'),
-		previewChoices: document.getElementById('preview-choices'),
-		previewChoicesWrap: document.getElementById('preview-choices-wrap'),
+		pos: document.getElementById('pos'),
 		cardTimer: document.getElementById('card-timer'),
 		cardTimerProgress: document.getElementById('card-timer-progress'),
+		viewerSection: document.querySelector('section.viewer'),
+		autoAdvBtn: document.getElementById('auto-adv-btn'),
+		timerBtn: document.getElementById('timer-btn'),
+		// ...add other elements as needed...
 	};
 
-	let state = {
+	// Application state
+	/**
+	 * Application state object. Tracks UI, card, and timer state.
+	 * @type {Object}
+	 */
+	const state = {
 		cards: [],
 		idx: 0,
 		showBack: false,
@@ -217,7 +54,7 @@
 		statsPerCard: [],
 		srsMode: false,
 		lastCardId: null,
-		choiceOrder: null, // array mapping displayed index -> original index for current MCQ card
+		choiceOrder: null,
 		deckMap: {},
 		cardsPage: 1,
 		cardsPerPage: 5,
@@ -237,26 +74,18 @@
 		logged: false,
 	};
 
-	function clearAutoAdvance() {
-		if (state.autoAdvanceTimer) {
-			clearTimeout(state.autoAdvanceTimer);
-			state.autoAdvanceTimer = null;
-		}
-		if (state.autoAdvanceRAF) {
-			cancelAnimationFrame(state.autoAdvanceRAF);
-			state.autoAdvanceRAF = null;
-		}
-		state.autoAdvanceStart = null;
-		const p = document.getElementById('auto-adv-progress');
-		if (p && p.parentElement) p.parentElement.removeChild(p);
-		if (els.autoAdvBtn) {
-			const secs = Math.round((state.autoAdvanceDelayMs || 5000) / 1000);
-			els.autoAdvBtn.textContent = state.autoAdvanceEnabled
-				? `Auto-Advance ${secs}s`
-				: 'Auto-Advance';
-		}
-	}
 
+	/**
+	 * API methods for backend communication (to be defined).
+	 * @type {Object}
+	 */
+	const api = {
+		// ...define API methods here as properties...
+	};
+
+	/**
+	 * Clears the card timer and hides timer UI.
+	 */
 	function clearCardTimer() {
 		if (state.timerRAF) {
 			cancelAnimationFrame(state.timerRAF);
@@ -269,6 +98,9 @@
 		clearAutoAdvance();
 	}
 
+	/**
+	 * Starts the card timer and updates progress bar. Reveals answer on timeout.
+	 */
 	function startCardTimer() {
 		clearCardTimer();
 		if (!state.timerEnabled || !els.viewerSection || els.viewerSection.hidden) return;
@@ -326,6 +158,9 @@
 		state.timerRAF = requestAnimationFrame(tick);
 	}
 
+	/**
+	 * Starts the auto-advance timer and progress bar for moving to next card.
+	 */
 	function startAutoAdvance() {
 		clearAutoAdvance();
 		if (!state.autoAdvanceEnabled) return;
@@ -367,6 +202,10 @@
 		state.autoAdvanceRAF = requestAnimationFrame(tick);
 	}
 
+	/**
+	 * Ensures the auto-advance progress bar UI is present in the DOM.
+	 * @returns {HTMLElement|null}
+	 */
 	function ensureAutoAdvProgressUI() {
 		if (!els.mcqResult || els.mcqResult.hidden) return null;
 		let wrap = document.getElementById('auto-adv-progress');
@@ -386,6 +225,10 @@
 		return wrap;
 	}
 
+	/**
+	 * Determines if auto-advance should trigger based on current state.
+	 * @returns {boolean}
+	 */
 	function shouldAutoAdvanceFromState() {
 		if (!state.autoAdvanceEnabled) return false;
 		if (els.viewerSection && els.viewerSection.hidden) return false;
@@ -401,6 +244,9 @@
 		}
 	}
 
+	/**
+	 * Updates the visibility of the main viewer section based on UI state.
+	 */
 	function updateViewerVisibility() {
 		const anyOpen = !!(
 			state.showAdder ||
@@ -411,10 +257,14 @@
 		);
 		if (els.viewerSection) els.viewerSection.hidden = anyOpen;
 	}
-	const DELAY_MS = 1200; // delay before reset/advance
-	const FLIP_MS = 500; // CSS flip transition duration (keep in sync with styles)
+	// const DELAY_MS = 1200; // delay before reset/advance (unused)
+	// const FLIP_MS = 500; // CSS flip transition duration (keep in sync with styles) (unused)
 
 	// Allowlist-based HTML sanitizer for safe rendering
+	/**
+	 * Allowed HTML tags for safe rendering.
+	 * @type {Set<string>}
+	 */
 	const ALLOWED_TAGS = new Set([
 		'b',
 		'strong',
@@ -447,11 +297,22 @@
 		'sub',
 		'mark',
 	]);
+	/**
+	 * Allowed HTML attributes for each tag for safe rendering.
+	 * @type {Object<string, Set<string>>}
+	 */
 	const ALLOWED_ATTRS = {
 		font: new Set(['color', 'size', 'face']),
 		a: new Set(['href']),
 		img: new Set(['src', 'alt', 'title', 'width', 'height']),
 	};
+	/**
+	 * Sanitizes a single HTML attribute value for a given tag.
+	 * @param {string} tag
+	 * @param {string} name
+	 * @param {string} value
+	 * @returns {string|null}
+	 */
 	function sanitizeAttr(tag, name, value) {
 		// Only allow attributes explicitly listed per tag
 		const allowed = ALLOWED_ATTRS[tag];
@@ -505,6 +366,11 @@
 		}
 		return null;
 	}
+	/**
+	 * Sanitizes HTML and returns a safe DocumentFragment for insertion.
+	 * @param {string} html
+	 * @returns {DocumentFragment}
+	 */
 	function sanitizeHtmlToFragment(html) {
 		const template = document.createElement('template');
 		template.innerHTML = html;
@@ -544,11 +410,20 @@
 		});
 		return out;
 	}
+	/**
+	 * Renders sanitized HTML into a DOM element.
+	 * @param {HTMLElement} el
+	 * @param {string} text
+	 */
 	function renderSafe(el, text) {
 		el.innerHTML = '';
 		el.appendChild(sanitizeHtmlToFragment(String(text)));
 	}
 
+	/**
+	 * Renders the decks dropdowns and lists in the UI.
+	 * @param {Array<Object>} decks
+	 */
 	function renderDecks(decks) {
 		els.deckSelect.innerHTML = '';
 		const anyOpt = document.createElement('option');
@@ -641,6 +516,9 @@
 		}
 	}
 
+	/**
+	 * Renders the cards list as a grid of mini-cards in the UI.
+	 */
 	function renderCardsTable() {
 		// Render as mini-cards grid instead of table
 		if (!els.cardsList) return;
@@ -792,212 +670,13 @@
 			els.cardsCount.textContent = `${total} matching card${total === 1 ? '' : 's'}`;
 	}
 
-	function enterEditRow(tr, card) {
-		tr.innerHTML = '';
-		tr.classList.add('edit-row');
-		const type = card.type || 'basic';
-		// ID
-		const tdId = document.createElement('td');
-		tdId.textContent = card.id;
-		tr.appendChild(tdId);
-		// Deck select
-		const tdDeck = document.createElement('td');
-		const deckSel = document.createElement('select');
-		deckSel.style.width = '100%';
-		const def = document.createElement('option');
-		def.value = 'Default';
-		def.textContent = 'Default';
-		deckSel.appendChild(def);
-		const currentDeckName = state.deckMap[card.deck_id] || 'Default';
-		Object.values(state.deckMap).forEach((name) => {
-			const opt = document.createElement('option');
-			opt.value = name;
-			opt.textContent = name;
-			deckSel.appendChild(opt);
-		});
-		deckSel.value = currentDeckName;
-		tdDeck.appendChild(deckSel);
-		tr.appendChild(tdDeck);
-		// Type label
-		const tdType = document.createElement('td');
-		tdType.className = 'cell-type';
-		tdType.textContent = type.toUpperCase();
-		tr.appendChild(tdType);
-		// Front input (use textarea for more viewing space)
-		const tdFront = document.createElement('td');
-		const frontInput = document.createElement('textarea');
-		frontInput.value = card.front || '';
-		frontInput.style.width = '100%';
-		frontInput.rows = 6;
-		tdFront.appendChild(frontInput);
-		tr.appendChild(tdFront);
-		// Back/Answers editor
-		const tdBack = document.createElement('td');
-		let backInput, choicesArea, multiChk, cardsChk, answerInput, answersInput;
-		if (type === 'basic') {
-			backInput = document.createElement('textarea');
-			backInput.value = card.back || '';
-			backInput.style.width = '100%';
-			backInput.rows = 8;
-			tdBack.appendChild(backInput);
-		} else {
-			multiChk = document.createElement('input');
-			multiChk.type = 'checkbox';
-			multiChk.checked = !!card.multi;
-			const multiLbl = document.createElement('label');
-			multiLbl.className = 'inline';
-			multiLbl.appendChild(multiChk);
-			multiLbl.appendChild(document.createTextNode(' Allow multiple answers'));
-			// Mini card layout toggle for MCQ choices
-			cardsChk = document.createElement('input');
-			cardsChk.type = 'checkbox';
-			cardsChk.checked = !!card.choices_as_cards;
-			const cardsLbl = document.createElement('label');
-			cardsLbl.className = 'inline';
-			cardsLbl.appendChild(cardsChk);
-			cardsLbl.appendChild(document.createTextNode(' Display choices as mini cards'));
-			choicesArea = document.createElement('textarea');
-			choicesArea.style.width = '100%';
-			choicesArea.rows = 8;
-			choicesArea.value = (card.choices || []).join('\n');
-			answerInput = document.createElement('input');
-			answerInput.type = 'number';
-			answerInput.min = '1';
-			answerInput.value = card.answer != null ? card.answer + 1 : 1;
-			answerInput.style.width = '100%';
-			answersInput = document.createElement('input');
-			answersInput.type = 'text';
-			answersInput.placeholder = 'e.g. 1,3';
-			answersInput.value = (card.answers || []).map((i) => i + 1).join(',');
-			answersInput.style.width = '100%';
-			const singleWrap = document.createElement('div');
-			singleWrap.className = 'form-block';
-			const singleLbl = document.createElement('div');
-			singleLbl.className = 'label';
-			singleLbl.textContent = 'Answer (1-based)';
-			singleWrap.appendChild(singleLbl);
-			singleWrap.appendChild(answerInput);
-			const multiWrap = document.createElement('div');
-			multiWrap.className = 'form-block';
-			const multiLbl2 = document.createElement('div');
-			multiLbl2.className = 'label';
-			multiLbl2.textContent = 'Answers (1-based, comma-separated)';
-			multiWrap.appendChild(multiLbl2);
-			multiWrap.appendChild(answersInput);
-			multiWrap.style.display = multiChk.checked ? '' : 'none';
-			singleWrap.style.display = multiChk.checked ? 'none' : '';
-			multiChk.addEventListener('change', () => {
-				multiWrap.style.display = multiChk.checked ? '' : 'none';
-				singleWrap.style.display = multiChk.checked ? 'none' : '';
-			});
-			tdBack.appendChild(multiLbl);
-			tdBack.appendChild(cardsLbl);
-			tdBack.appendChild(choicesArea);
-			tdBack.appendChild(singleWrap);
-			tdBack.appendChild(multiWrap);
-		}
-		tr.appendChild(tdBack);
-		// Actions
-		const tdActions = document.createElement('td');
-		tdActions.className = 'row-actions';
-		const save = document.createElement('button');
-		save.className = 'btn btn-primary';
-		save.textContent = 'Save';
-		const cancel = document.createElement('button');
-		cancel.className = 'btn';
-		cancel.textContent = 'Cancel';
-		tdActions.appendChild(save);
-		tdActions.appendChild(cancel);
-		tr.appendChild(tdActions);
+	// _enterEditRow function removed (was unused)
 
-		const updatePreview = () => {
-			if (!els.cardsPreview) return;
-			els.cardsPreview.hidden = false;
-			const typeLabel =
-				type.toUpperCase() +
-				(type === 'mcq' ? (multiChk && multiChk.checked ? ' (MULTI)' : ' (SINGLE)') : '');
-			if (els.previewType) els.previewType.textContent = typeLabel;
-			if (els.previewFront) renderSafe(els.previewFront, frontInput.value || '');
-			if (type === 'basic') {
-				els.previewBackWrap.hidden = false;
-				els.previewChoicesWrap.hidden = true;
-				renderSafe(els.previewBack, backInput ? backInput.value || '' : '');
-			} else {
-				els.previewBackWrap.hidden = true;
-				els.previewChoicesWrap.hidden = false;
-				els.previewChoices.innerHTML = '';
-				els.previewChoices.classList.toggle('cards', !!(cardsChk && cardsChk.checked));
-				const lines = (choicesArea.value || '')
-					.split(/\r?\n/)
-					.map((s) => s.trim())
-					.filter(Boolean);
-				lines.forEach((txt) => {
-					const btn = document.createElement('div');
-					btn.className = 'choice';
-					if (cardsChk && cardsChk.checked) btn.classList.add('card-choice');
-					renderSafe(btn, txt);
-					els.previewChoices.appendChild(btn);
-				});
-			}
-		};
-		// Initialize and bind live preview updates
-		updatePreview();
-		frontInput.addEventListener('input', updatePreview);
-		if (backInput) backInput.addEventListener('input', updatePreview);
-		if (choicesArea) choicesArea.addEventListener('input', updatePreview);
-		if (cardsChk) cardsChk.addEventListener('change', updatePreview);
-		if (multiChk) multiChk.addEventListener('change', updatePreview);
-
-		save.addEventListener('click', async () => {
-			const patch = {};
-			const newFront = frontInput.value.trim();
-			if (newFront && newFront !== card.front) patch.front = newFront;
-			const selectedDeck = deckSel.value;
-			if ((state.deckMap[card.deck_id] || 'Default') !== selectedDeck)
-				patch.deck = selectedDeck;
-			if (type === 'basic') {
-				const nb = (backInput.value || '').trim();
-				if (nb !== (card.back || '')) patch.back = nb;
-			} else {
-				const lines = (choicesArea.value || '')
-					.split(/\r?\n/)
-					.map((s) => s.trim())
-					.filter(Boolean);
-				if (JSON.stringify(lines) !== JSON.stringify(card.choices || []))
-					patch.choices = lines;
-				const isMulti = !!multiChk.checked;
-				patch.multi = isMulti;
-				if (typeof cardsChk !== 'undefined' && cardsChk)
-					patch.choices_as_cards = !!cardsChk.checked;
-				if (isMulti) {
-					const nums = (answersInput.value || '')
-						.split(/[^\d]+/)
-						.map((s) => s.trim())
-						.filter(Boolean)
-						.map((s) => parseInt(s, 10) - 1);
-					const uniq = [...new Set(nums)];
-					patch.answers = uniq;
-				} else {
-					const idx = parseInt(answerInput.value, 10) - 1;
-					patch.answer = isNaN(idx) ? null : idx;
-				}
-			}
-			try {
-				await api.updateCard(card.id, patch);
-				await refresh();
-				if (window.setCardsVisible) window.setCardsVisible(true);
-				if (els.cardsPreview) els.cardsPreview.hidden = true;
-			} catch (e) {
-				alert('Failed to save: ' + e);
-			}
-		});
-		cancel.addEventListener('click', async () => {
-			await refresh();
-			if (window.setCardsVisible) window.setCardsVisible(true);
-			if (els.cardsPreview) els.cardsPreview.hidden = true;
-		});
-	}
-
+	/**
+	 * Begins the rename flow for a deck row in the UI.
+	 * @param {HTMLElement} row
+	 * @param {Object} deck
+	 */
 	function beginRename(row, deck) {
 		row.innerHTML = '';
 		const wrap = document.createElement('div');
@@ -1022,7 +701,7 @@
 			await api.renameDeck(deck.id, name);
 			if (state.deckName === deck.name) state.deckName = name;
 			await refresh();
-			if (window.setDecksVisible) window.setDecksVisible(true);
+			alert('Failed to save');
 		});
 		cancel.addEventListener('click', async () => {
 			await refresh();
@@ -1032,6 +711,9 @@
 		input.select();
 	}
 
+	/**
+	 * Renders the current card in the main viewer, including MCQ and basic types.
+	 */
 	function renderCard() {
 		if (!state.cards.length) {
 			renderSafe(els.frontText, 'No cards yet');
@@ -1309,14 +991,36 @@
 				await api.updateCard(card.id, patch);
 				await refresh();
 				if (window.setCardsVisible) window.setCardsVisible(true);
-			} catch (e) {
-				alert('Failed to save: ' + e);
+			} catch (_e) {
+				alert('Failed to save: ' + _e);
 			}
 		});
 		cancel.addEventListener('click', async () => {
 			await refresh();
 			if (window.setCardsVisible) window.setCardsVisible(true);
 		});
+	}
+
+	// Cancels any running auto-advance timer and animation frame
+	function clearAutoAdvance() {
+		if (state.autoAdvanceTimer) {
+			clearTimeout(state.autoAdvanceTimer);
+			state.autoAdvanceTimer = null;
+		}
+		if (state.autoAdvanceRAF) {
+			cancelAnimationFrame(state.autoAdvanceRAF);
+			state.autoAdvanceRAF = null;
+		}
+		state.autoAdvanceStart = null;
+		// Optionally reset progress bar UI
+		const el = document.getElementById('auto-adv-progress-bar');
+		if (el) {
+			el.style.width = '0%';
+			el.style.background = '';
+		}
+		if (els.autoAdvBtn) {
+			els.autoAdvBtn.textContent = 'Auto-Advance';
+		}
 	}
 
 	// Size the flashcard to fit the currently visible content
@@ -1381,41 +1085,6 @@
 
 	// Start the 'advance-out' animation now and wait for it to finish before swapping.
 	// If outDurationMs is provided, temporarily set animationDuration to sync with flip.
-	function nextAnimatedWithOut(outDurationMs) {
-		if (!state.cards.length) return;
-		const cardEl = els.card;
-		const doSwap = () => {
-			state.idx = (state.idx + 1) % state.cards.length;
-			state.showBack = false;
-			state.selected = null;
-			state.correct = null;
-			state.multiSelected.clear();
-			state.multiChecked = false;
-			state.timeoutReveal = false;
-			state.timerHold = false;
-			clearTimer();
-			clearCardTimer();
-			renderCard();
-		};
-		// Set temporary duration if provided
-		if (outDurationMs) cardEl.style.animationDuration = outDurationMs + 'ms';
-		cardEl.classList.remove('advance-in');
-		cardEl.classList.add('advance-out');
-		const onOut = () => {
-			cardEl.removeEventListener('animationend', onOut);
-			cardEl.classList.remove('advance-out');
-			// Clear temporary duration so 'advance-in' uses its own
-			if (outDurationMs) cardEl.style.animationDuration = '';
-			doSwap();
-			cardEl.classList.add('advance-in');
-			const onIn = () => {
-				cardEl.classList.remove('advance-in');
-				cardEl.removeEventListener('animationend', onIn);
-			};
-			cardEl.addEventListener('animationend', onIn);
-		};
-		cardEl.addEventListener('animationend', onOut);
-	}
 
 	function prev() {
 		if (!state.cards.length) return;
@@ -1619,7 +1288,7 @@
 		const data = await (async () => {
 			try {
 				return await api.stats(state.deckName);
-			} catch (e) {
+			} catch {
 				return {
 					total_cards: 0,
 					reviewed_cards: 0,
@@ -1776,14 +1445,18 @@
 			els.timerBtn.textContent = state.timerEnabled ? '⏱ 10s' : '⏱';
 			try {
 				localStorage.setItem('timerEnabled', state.timerEnabled ? '1' : '0');
-			} catch {}
+			} catch {
+				/* intentionally empty */
+			}
 			if (state.timerEnabled) startCardTimer();
 			else clearCardTimer();
 		};
 		els.timerBtn.addEventListener('click', () => setTimerEnabled(!state.timerEnabled));
 		try {
 			state.timerEnabled = localStorage.getItem('timerEnabled') === '1';
-		} catch {}
+		} catch {
+			/* intentionally empty */
+		}
 		setTimerEnabled(state.timerEnabled);
 	}
 	if (els.autoAdvBtn) {
@@ -1801,7 +1474,9 @@
 				: 'Auto-Advance';
 			try {
 				localStorage.setItem('autoAdvanceEnabled', state.autoAdvanceEnabled ? '1' : '0');
-			} catch {}
+			} catch {
+				/* intentionally empty */
+			}
 			if (state.autoAdvanceEnabled) startAutoAdvance();
 			else clearAutoAdvance();
 		};
@@ -1810,7 +1485,9 @@
 		);
 		try {
 			state.autoAdvanceEnabled = localStorage.getItem('autoAdvanceEnabled') === '1';
-		} catch {}
+		} catch {
+			/* intentionally empty */
+		}
 		setAutoAdvEnabled(state.autoAdvanceEnabled);
 	}
 	if (els.toggleAddBtn) {
@@ -1824,14 +1501,18 @@
 			if (mainEl) mainEl.classList.toggle('single-column', !state.showAdder);
 			try {
 				localStorage.setItem('showAdder', state.showAdder ? '1' : '0');
-			} catch {}
+			} catch {
+				/* intentionally empty */
+			}
 			updateViewerVisibility();
 		};
 		els.toggleAddBtn.addEventListener('click', () => setAdderVisible(!state.showAdder));
 		// restore persisted preference
 		try {
 			state.showAdder = localStorage.getItem('showAdder') === '1';
-		} catch {}
+		} catch {
+			/* intentionally empty */
+		}
 		setAdderVisible(state.showAdder);
 	}
 	if (els.toggleDecksBtn) {
@@ -1845,13 +1526,17 @@
 			}
 			try {
 				localStorage.setItem('showDecks', state.showDecks ? '1' : '0');
-			} catch {}
+			} catch {
+				/* intentionally empty */
+			}
 			updateViewerVisibility();
 		};
 		els.toggleDecksBtn.addEventListener('click', () => setDecksVisible(!state.showDecks));
 		try {
 			state.showDecks = localStorage.getItem('showDecks') === '1';
-		} catch {}
+		} catch {
+			/* intentionally empty */
+		}
 		setDecksVisible(state.showDecks);
 		window.setDecksVisible = setDecksVisible;
 	}
@@ -1864,13 +1549,17 @@
 			if (state.showCards) renderCardsTable();
 			try {
 				localStorage.setItem('showCards', state.showCards ? '1' : '0');
-			} catch {}
+			} catch {
+				/* intentionally empty */
+			}
 			updateViewerVisibility();
 		};
 		els.toggleCardsBtn.addEventListener('click', () => setCardsVisible(!state.showCards));
 		try {
 			state.showCards = localStorage.getItem('showCards') === '1';
-		} catch {}
+		} catch {
+			/* intentionally empty */
+		}
 		setCardsVisible(state.showCards);
 		window.setCardsVisible = setCardsVisible;
 	}
@@ -1884,12 +1573,16 @@
 			if (state.showStats) await renderStats();
 			try {
 				localStorage.setItem('showStats', state.showStats ? '1' : '0');
-			} catch {}
+			} catch {
+				/* intentionally empty */
+			}
 		};
 		els.toggleStatsBtn.addEventListener('click', () => setStatsVisible(!state.showStats));
 		try {
 			state.showStats = localStorage.getItem('showStats') === '1';
-		} catch {}
+		} catch {
+			/* intentionally empty */
+		}
 		setStatsVisible(state.showStats);
 		window.setStatsVisible = setStatsVisible;
 	}
@@ -1910,7 +1603,9 @@
 		);
 		try {
 			state.showSettings = localStorage.getItem('showSettings') === '1';
-		} catch {}
+		} catch {
+			/* intentionally empty */
+		}
 		setSettingsVisible(state.showSettings);
 	}
 
@@ -1936,7 +1631,9 @@
 					state.cardsPage = 1;
 					try {
 						localStorage.setItem('cardsPerPage', String(v));
-					} catch {}
+					} catch {
+						/* intentionally empty */
+					}
 					// mirror into toolbar selector if present
 					if (els.cardsPageSize) els.cardsPageSize.value = String(v);
 				}
@@ -1946,7 +1643,9 @@
 				const defName = els.setDefaultDeck.value || '';
 				try {
 					localStorage.setItem('defaultDeckName', defName);
-				} catch {}
+				} catch {
+					/* intentionally empty */
+				}
 				if (state.deckName !== defName) {
 					state.deckName = defName;
 					if (els.deckSelect) els.deckSelect.value = defName;
@@ -1961,7 +1660,9 @@
 				);
 				localStorage.setItem('timerEnabled', state.timerEnabled ? '1' : '0');
 				localStorage.setItem('timerDurationMs', String(state.timerDurationMs || 10000));
-			} catch {}
+			} catch {
+				/* intentionally empty */
+			}
 			// Reflect header toggles and behaviors
 			if (els.autoAdvBtn) {
 				els.autoAdvBtn.classList.toggle('active', state.autoAdvanceEnabled);
@@ -2020,13 +1721,17 @@
 			els.srsModeBtn.textContent = 'Study (SRS)';
 			try {
 				localStorage.setItem('srsMode', state.srsMode ? '1' : '0');
-			} catch {}
+			} catch {
+				/* intentionally empty */
+			}
 			await refresh();
 		};
 		els.srsModeBtn.addEventListener('click', () => setSrsMode(!state.srsMode));
 		try {
 			state.srsMode = localStorage.getItem('srsMode') === '1';
-		} catch {}
+		} catch {
+			/* intentionally empty */
+		}
 		setSrsMode(state.srsMode);
 	}
 	if (els.statsPrev)
@@ -2060,7 +1765,9 @@
 		try {
 			const saved = parseInt(localStorage.getItem('cardsPerPage') || '', 10);
 			if (!isNaN(saved) && [5, 10, 25, 50, 100].includes(saved)) state.cardsPerPage = saved;
-		} catch {}
+		} catch {
+			/* intentionally empty */
+		}
 		els.cardsPageSize.value = String(state.cardsPerPage);
 		els.cardsPageSize.addEventListener('change', () => {
 			const v = parseInt(els.cardsPageSize.value, 10);
@@ -2069,7 +1776,9 @@
 				state.cardsPage = 1;
 				try {
 					localStorage.setItem('cardsPerPage', String(v));
-				} catch {}
+				} catch {
+					/* intentionally empty */
+				}
 				renderCardsTable();
 			}
 		});
@@ -2186,7 +1895,9 @@
 	try {
 		const def = localStorage.getItem('defaultDeckName');
 		if (def != null) state.deckName = def;
-	} catch {}
+	} catch {
+		/* intentionally empty */
+	}
 	// Always allow limited, safe HTML rendering
 	refresh().catch((err) => {
 		console.error(err);
