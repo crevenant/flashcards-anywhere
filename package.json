@@ -9,7 +9,7 @@
 	 "start:all": "concurrently \"npm run start:server\" \"npm run start:electron\"",
 	 "start": "npm run start:all",
 	 "test": "jest",
-	 "build:win": "electron-builder --win --x64",
+		"build:win": "electron-builder --win --x64 --publish never",
 	 "build:mac": "electron-builder --mac --x64",
 	 "build:linux": "electron-builder --linux --x64",
 	 "build": "electron-builder --dir"
