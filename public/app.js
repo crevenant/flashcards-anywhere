@@ -1,18 +1,24 @@
 (() => {
+  // Robust Electron detection for all Electron versions/contexts
+  // Fallback: if loaded as file://, assume Electron and use localhost backend
+  const isElectron = (typeof process !== 'undefined' && process.versions && !!process.versions.electron) || (window.location.protocol === 'file:');
+  // Use localhost:8000 for Electron or file://, relative for web
+  const API_BASE = isElectron ? 'http://localhost:8000' : '';
+
   const api = {
     async decks() {
-      const r = await fetch('/api/decks');
+      const r = await fetch(`${API_BASE}/api/decks`);
       if (!r.ok) throw new Error('Failed to load decks');
       return (await r.json()).decks || [];
     },
-    async cards(deckName) {
-      const url = deckName ? `/api/cards?deck=${encodeURIComponent(deckName)}` : '/api/cards';
+    async cards(deckId) {
+      const url = deckId ? `${API_BASE}/api/cards?deck_id=${encodeURIComponent(deckId)}` : `${API_BASE}/api/cards`;
       const r = await fetch(url);
       if (!r.ok) throw new Error('Failed to load cards');
       return (await r.json()).cards || [];
     },
     async addCard(card) {
-      const r = await fetch('/api/cards', {
+      const r = await fetch(`${API_BASE}/api/cards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(card)
@@ -21,7 +27,7 @@
       return await r.json();
     },
     async updateCard(id, patch) {
-      const r = await fetch(`/api/cards/${id}`, {
+      const r = await fetch(`${API_BASE}/api/cards/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch)
@@ -30,44 +36,44 @@
       return await r.json();
     },
     async deleteCard(id) {
-      const r = await fetch(`/api/cards/${id}`, { method: 'DELETE' });
+      const r = await fetch(`${API_BASE}/api/cards/${id}`, { method: 'DELETE' });
       if (r.status !== 204) throw new Error('Failed to delete card');
     },
     async renameDeck(id, name) {
-      const r = await fetch(`/api/decks/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      const r = await fetch(`${API_BASE}/api/decks/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
       if (!r.ok) throw new Error('Failed to rename deck');
       return await r.json();
     },
     async deleteDeck(id) {
-      const r = await fetch(`/api/decks/${id}`, { method: 'DELETE' });
+      const r = await fetch(`${API_BASE}/api/decks/${id}`, { method: 'DELETE' });
       if (r.status !== 204) throw new Error('Failed to delete deck');
     },
     async createDeck(name) {
-      const r = await fetch('/api/decks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      const r = await fetch(`${API_BASE}/api/decks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
       if (!r.ok) throw new Error('Failed to create deck');
       return await r.json();
     },
     async stats(deckName) {
-      const url = deckName ? `/api/stats?deck=${encodeURIComponent(deckName)}` : '/api/stats';
+      const url = deckName ? `${API_BASE}/api/stats?deck=${encodeURIComponent(deckName)}` : `${API_BASE}/api/stats`;
       const r = await fetch(url);
       if (!r.ok) throw new Error('Failed to load stats');
       return await r.json();
     },
-    async srsDue(deckName, limit=50) {
-      const url = deckName ? `/api/srs/due?deck=${encodeURIComponent(deckName)}&limit=${encodeURIComponent(String(limit))}` : `/api/srs/due?limit=${encodeURIComponent(String(limit))}`;
+    async srsDue(deckId, limit=50) {
+      const url = deckId ? `${API_BASE}/api/srs/due?deck_id=${encodeURIComponent(deckId)}&limit=${encodeURIComponent(String(limit))}` : `${API_BASE}/api/srs/due?limit=${encodeURIComponent(String(limit))}`;
       const r = await fetch(url);
       if (!r.ok) throw new Error('Failed to load due cards');
       return (await r.json()).cards || [];
     },
     async review(card_id, result, duration_ms) {
       try {
-        const r = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card_id, result, duration_ms }) });
+  const r = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: card_id, result, duration_ms }) });
         return r.ok;
       } catch { return false; }
     },
     async srsReview(card_id, grade) {
       try {
-        const r = await fetch('/api/srs/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card_id, grade }) });
+  const r = await fetch('/api/srs/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: card_id, grade }) });
         return r.ok ? await r.json() : null;
       } catch { return null; }
     }
@@ -467,14 +473,15 @@
     els.deckSelect.appendChild(anyOpt);
     decks.forEach(d => {
       const opt = document.createElement('option');
-      opt.value = d.name;
+      opt.value = d.id;
       opt.textContent = d.name;
       els.deckSelect.appendChild(opt);
     });
-    els.deckSelect.value = state.deckName;
-    // Build id->name map
+    els.deckSelect.value = state.deckId || '';
+    // Build id->name and name->id maps
     state.deckMap = {};
-    decks.forEach(d => { state.deckMap[d.id] = d.name; });
+    state.deckNameToId = {};
+    decks.forEach(d => { state.deckMap[d.id] = d.name; state.deckNameToId[d.name] = d.id; });
     // Populate Settings default deck dropdown if present
     if (els.setDefaultDeck) {
       els.setDefaultDeck.innerHTML = '';

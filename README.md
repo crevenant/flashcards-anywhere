@@ -1,21 +1,33 @@
-Flashcards (SQLite)
+Flashcards Anywhere
 ===================
 
-Minimal web app to view and add flashcards backed by SQLite. No external dependencies are required; it uses Python's standard library HTTP server and the built-in `sqlite3` module.
+Flashcards Anywhere is a lightweight, self-hosted flashcard app for efficient study and spaced repetition. Featuring a Node.js backend, Electron desktop app, and a fast, modern frontend, it lets you create, review, and organize decks of flashcards from any device. All data is stored locally, giving you full control and privacy. Ideal for language learners, students, and anyone who wants a distraction-free study tool.
+
+Features:
+
+- Create, edit, and delete flashcards and decks
+- Spaced repetition scheduling (SRS) for effective memorization
+- Clean, responsive web interface
+- No sign-up or cloud required—your data stays on your machine
+
 
 Prerequisites
 -------------
-- Python 3.9+ installed and available on PATH (`python` or `py`)
+- Node.js 18+ and npm installed
 
-Run
----
+
+Run (Web/Server)
+----------------
 - From the project root:
-
-  - Windows PowerShell: `python .\server.py`
-  - Or: `py .\server.py`
-  - Unix-like: `python3 server.py`
-
+  - `npm install` (first time only)
+  - `npm run start:server`
 - Open `http://127.0.0.1:8000` in your browser.
+
+Run (Electron Desktop)
+---------------------
+- From the project root:
+  - `npm install` (first time only)
+  - `npm start`
 
 API (Quick Reference)
 ---------------------
@@ -29,10 +41,10 @@ API (Quick Reference)
 - `PUT /api/cards/{id}` body: `{ front?, back?, deck?, choices?, answer?, answers?, multi? }` (type is immutable)
 - `DELETE /api/cards/{id}`
 
+
 Notes
 -----
 - On first run, a project‑local database is created at `data/flashcards.db` with a `Default` deck and a few sample cards.
-- Existing databases from older runs (stored in a temp folder) are copied into `data/flashcards.db` on first startup when present.
 - To change port, set `PORT` env var before running (e.g., `PORT=3000`).
 - To change DB location, set `DB_PATH` to a writable path; it overrides the default `data/flashcards.db`.
 
