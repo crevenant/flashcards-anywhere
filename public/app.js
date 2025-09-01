@@ -67,13 +67,13 @@
     },
     async review(card_id, result, duration_ms) {
       try {
-        const r = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card_id, result, duration_ms }) });
+  const r = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: card_id, result, duration_ms }) });
         return r.ok;
       } catch { return false; }
     },
     async srsReview(card_id, grade) {
       try {
-        const r = await fetch('/api/srs/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card_id, grade }) });
+  const r = await fetch('/api/srs/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: card_id, grade }) });
         return r.ok ? await r.json() : null;
       } catch { return null; }
     }
