@@ -1,8 +1,14 @@
 
 // Electron main process entry point
 // Responsible for creating the main application window and handling app lifecycle events
+
+// Electron main process entry point
+// Responsible for creating the main application window and handling app lifecycle events
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
+const { spawn } = require('child_process');
+
+let backendProcess = null;
 
 
 // Creates the main application window
@@ -25,10 +31,26 @@ function createWindow() {
 
 
 // Called when Electron has finished initialization
-app.whenReady().then(createWindow);
+
+// Start backend server as a child process
+function startBackend() {
+	// Use Node to run server.js
+	const backend = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
+		stdio: 'ignore', // or ['ignore', 'pipe', 'pipe'] to capture output
+		detached: true,
+	});
+	backend.unref();
+	return backend;
+}
+
+app.whenReady().then(() => {
+	backendProcess = startBackend();
+	createWindow();
+});
 
 
 // Quit the app when all windows are closed (except on macOS)
+
 app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') {
 		app.quit();
@@ -37,8 +59,20 @@ app.on('window-all-closed', () => {
 
 
 // On macOS, re-create a window when the dock icon is clicked and there are no open windows
+
 app.on('activate', () => {
 	if (BrowserWindow.getAllWindows().length === 0) {
 		createWindow();
+	}
+});
+
+// Ensure backend server is killed when Electron quits
+app.on('quit', () => {
+	if (backendProcess && !backendProcess.killed) {
+		try {
+			process.kill(-backendProcess.pid);
+		} catch (e) {
+			// Already exited or failed to kill
+		}
 	}
 });
