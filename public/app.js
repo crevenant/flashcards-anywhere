@@ -1,49 +1,10 @@
-	form: document.getElementById('add-form'),
-// Use utilities attached to window (see below for attaching them)
+	import { state } from './state.js';
 
-(() => {
+	// Use utilities attached to window (see below for attaching them)
+
+	(() => {
 	// Dummy clearCardTimer to prevent ReferenceError (implement as needed)
 	function clearCardTimer() {}
-	// Global app state
-	const state = {
-		cards: [],
-		idx: 0,
-		showBack: false,
-		deckName: '',
-		selected: null,
-		correct: null,
-		resetTimer: null,
-		multiSelected: new Set(),
-		multiChecked: false,
-		showAdder: false,
-		showDecks: false,
-		showCards: false,
-		showStats: false,
-		showSettings: false,
-		statsPage: 1,
-		statsPerPage: 5,
-		statsPerCard: [],
-		srsMode: false,
-		lastCardId: null,
-		choiceOrder: null,
-		deckMap: {},
-		cardsPage: 1,
-		cardsPerPage: 5,
-		cardsFilter: '',
-		timerEnabled: false,
-		autoAdvanceEnabled: false,
-		timerDurationMs: 10000,
-		autoAdvanceDelayMs: 5000,
-		timerStart: null,
-		timerRAF: null,
-		timerHold: false,
-		timeoutReveal: false,
-		autoAdvanceTimer: null,
-		autoAdvanceStart: null,
-		autoAdvanceRAF: null,
-		viewStart: null,
-		logged: false,
-	};
 	// Robust Electron detection for all Electron versions/contexts
 	// Fallback: if loaded as file://, assume Electron and use localhost backend
 	// isElectron removed (was unused)
