@@ -1,15 +1,21 @@
+/* eslint-env node */
+// Electron main process entry point
+// Responsible for creating the main application window and handling app lifecycle events
+
+const { app, BrowserWindow, dialog } = require('electron');
+const fs = require('fs');
+const LOG_PATH = require('path').join(__dirname, 'logs', 'electron.log');
+function log(msg) {
+	const line = `[${new Date().toISOString()}] ${msg}\n`;
+	try { fs.appendFileSync(LOG_PATH, line); } catch (_) {}
+	console.log(msg);
+}
 // Ensure only one instance of the app is running
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
 	app.quit();
 	process.exit(0);
 }
-
-/* eslint-env node */
-// Electron main process entry point
-// Responsible for creating the main application window and handling app lifecycle events
-
-const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -38,21 +44,35 @@ function startBackend() {
 	// Prevent infinite Electron spawn: only start backend if not running under Electron
 	const isElectron = !!process.versions.electron;
 	const execPath = process.execPath.toLowerCase();
-	// If running under Electron, do not spawn backend
-	if (isElectron && execPath.includes('electron')) {
+	let nodeExec = process.execPath; // electron binary
+	const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1' };
+
+	let serverPath;
+	const isPackaged = app.isPackaged || (process.mainModule && /\.asar[\\\/]main\.js$/.test(process.mainModule.filename));
+	if (isPackaged) {
+		serverPath = path.join(process.resourcesPath, 'app.asar', 'server.js');
+		log(`[Electron] Packaged backend path: ${serverPath}`);
+	} else {
+		serverPath = path.join(__dirname, 'server.js');
+		log(`[Electron] Dev backend path: ${serverPath}`);
+	}
+
+	try {
+		log(`[Electron] Spawning backend: ${nodeExec} ${serverPath}`);
+		const backend = spawn(nodeExec, [serverPath], {
+			stdio: 'ignore',
+			detached: true,
+			env,
+		});
+		backend.on('error', (err) => {
+			log(`[Electron] Failed to spawn backend: ${err}`);
+		});
+		backend.unref();
+		return backend;
+	} catch (e) {
+		log(`[Electron] Exception during backend spawn: ${e}`);
 		return null;
 	}
-	// Always use Node to run the backend, never Electron
-	let nodeExec = process.env.NODE_EXEC_PATH || process.execPath;
-	if (execPath.includes('electron')) {
-		nodeExec = 'node'; // fallback to system node if running under Electron
-	}
-	const backend = spawn(nodeExec, [path.join(__dirname, 'server.js')], {
-		stdio: 'ignore',
-		detached: true,
-	});
-	backend.unref();
-	return backend;
 }
 
 // Wait for backend server to be available
@@ -78,13 +98,23 @@ function waitForBackend(port = 8000, timeout = 20000) {
 }
 
 app.whenReady().then(async () => {
+	log('[Electron] App ready, starting backend...');
 	backendProcess = startBackend();
+	let backendOk = false;
 	try {
 		await waitForBackend(8000, 20000);
+		log('[Electron] Backend is up, creating window.');
+		backendOk = true;
 	} catch (e) {
-		console.error(e);
+		log(`[Electron] Backend failed to start: ${e}`);
+		dialog.showErrorBox('Backend Startup Error',
+			'The backend server failed to start. The app cannot function without it.\n\nCheck logs/electron.log for details.');
 	}
 	createWindow();
+	if (!backendOk) {
+		// Optionally, close the app after showing the error
+		setTimeout(() => app.quit(), 10000);
+	}
 });
 
 // Quit the app when all windows are closed (except on macOS)

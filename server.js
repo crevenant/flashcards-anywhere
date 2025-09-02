@@ -1,17 +1,25 @@
 /* eslint-env node */
 
 // Global error handlers for debugging server crashes
+const fs = require('fs');
+const path = require('path');
+const LOG_PATH = path.join(__dirname, 'logs', 'backend.log');
+function log(msg) {
+	const line = `[${new Date().toISOString()}] ${msg}\n`;
+	try { fs.appendFileSync(LOG_PATH, line); } catch (_) {}
+	console.log(msg);
+}
 process.on('uncaughtException', (err) => {
-	console.error('[Uncaught Exception]', err);
+	log('[Uncaught Exception] ' + err);
 	process.exit(1);
 });
 process.on('unhandledRejection', (reason, promise) => {
-	console.error('[Unhandled Rejection]', reason);
+	log('[Unhandled Rejection] ' + reason);
 	process.exit(1);
 });
 const registerGlobalErrorHandlers = require('./src/middleware/globalErrorHandlers');
 registerGlobalErrorHandlers();
-console.log('Starting server.js...');
+log('Starting server.js...');
 // Flashcards Anywhere backend server
 // Express app serving REST API and static frontend for flashcard management
 
@@ -38,25 +46,31 @@ app.use(express.static(config.PUBLIC_DIR));
 app.use('/src/frontend/utils', express.static(path.join(__dirname, 'src', 'frontend', 'utils')));
 
 let appReady = (async () => {
-	const db = await loadDatabase();
-	registerDeckRoutes(app, db);
-	registerCardRoutes(app, db);
-	registerSrsRoutes(app, db);
-	registerReviewRoutes(app, db);
-	registerStatsRoutes(app, db);
-
-	// Start the server only if run directly (not during tests)
-	if (require.main === module) {
-		console.log('Reached listen block');
-		app.listen(PORT, (err) => {
-			if (err) {
-				console.error('[Backend Startup Error] Failed to start server:', err);
-				process.exit(1);
-			}
-			console.log(`Flashcards Anywhere Node server running at http://localhost:${PORT}`);
-		});
+	try {
+		log('Loading database...');
+		const db = await loadDatabase();
+		log('Database loaded.');
+		registerDeckRoutes(app, db);
+		registerCardRoutes(app, db);
+		registerSrsRoutes(app, db);
+		registerReviewRoutes(app, db);
+		registerStatsRoutes(app, db);
+		// Start the server only if run directly (not during tests)
+		if (require.main === module) {
+			log('Reached listen block');
+			app.listen(PORT, (err) => {
+				if (err) {
+					log('[Backend Startup Error] Failed to start server: ' + err);
+					process.exit(1);
+				}
+				log(`Flashcards Anywhere Node server running at http://localhost:${PORT}`);
+			});
+		}
+		return app;
+	} catch (e) {
+		log('[Backend Fatal Error] ' + e);
+		throw e;
 	}
-	return app;
 })();
 
 // Export a promise that resolves to the app for testing and integration

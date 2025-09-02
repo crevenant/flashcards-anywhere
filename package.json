@@ -15,7 +15,10 @@
 		"build:mac": "electron-builder --mac --x64",
 		"build:linux": "electron-builder --linux --x64",
 		"build": "electron-builder --dir",
-		"postinstall": "electron-builder install-app-deps"
+		"postinstall": "electron-builder install-app-deps",
+		"clean:dist": "rimraf dist",
+		"kill:app": "powershell -NoProfile -Command \"$ErrorActionPreference='SilentlyContinue'; taskkill /IM 'Flashcards Anywhere.exe' /F; taskkill /IM electron.exe /F; Get-Process | Where-Object { $_.ProcessName -match 'Flashcards|electron' -or $_.MainWindowTitle -match 'Flashcards Anywhere' } | Stop-Process -Force -ErrorAction SilentlyContinue; Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'flashcards-anywhere.*server\\.js' -or $_.CommandLine -match 'server\\.js' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 800; 1..3 | ForEach-Object { if (Test-Path 'dist/win-unpacked/resources/app.asar') { try { Remove-Item 'dist/win-unpacked/resources/app.asar' -Force } catch {}; Start-Sleep -Milliseconds 400 } }\"",
+		"build:electron": "npm run kill:app && powershell -NoProfile -Command \"$ErrorActionPreference='Stop'; $out = Join-Path 'dist' ('out-' + (Get-Date -Format 'yyyyMMdd-HHmmss')); Write-Host ('Using output: ' + $out); electron-builder --dir --config.directories.output=$out; Start-Process (Join-Path $out 'win-unpacked/Flashcards Anywhere.exe')\""
 	},
 	"build": {
 		"appId": "com.flashcards.anywhere",
@@ -27,6 +30,14 @@
 			"data/**/*",
 			"node_modules/**/*",
 			"package.json"
+		],
+		"asarUnpack": [
+			"server.js",
+			"src/**",
+			"data/**"
+		],
+		"extraResources": [
+			{ "from": "data", "to": "data" }
 		],
 		"directories": {
 			"buildResources": "public"
@@ -44,7 +55,8 @@
 		"electron-rebuild": "^3.2.9",
 		"eslint": "^9.34.0",
 		"globals": "^16.3.0",
-		"prettier": "^3.2.5"
+		"prettier": "^3.2.5",
+		"rimraf": "^6.0.1"
 	},
 	"dependencies": {
 		"express": "^4.19.2",

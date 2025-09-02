@@ -1829,4 +1829,17 @@
 		console.error(err);
 		alert('Failed to load data. See console for details.');
 	});
+	// Show DB path in settings panel
+	async function showDbPath() {
+		try {
+			const res = await fetch('/api/db-path');
+			const data = await res.json();
+			const el = document.getElementById('db-path');
+			if (el) el.textContent = data.dbPath;
+		} catch (e) {
+			const el = document.getElementById('db-path');
+			if (el) el.textContent = 'Error fetching DB path';
+		}
+	}
+	showDbPath();
 })();

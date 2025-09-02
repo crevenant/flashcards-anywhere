@@ -1,6 +1,7 @@
 // src/api/stats.js
 // Stats API routes for Flashcards Anywhere
 const express = require('express');
+const { getDbPath } = require('../db/db');
 
 /**
  * Registers stats routes on the given app instance.
@@ -8,6 +9,10 @@ const express = require('express');
  * @param {sqlite3.Database} db
  */
 function registerStatsRoutes(app, db) {
+  // Expose DB path for diagnostics
+  app.get('/api/db-path', (req, res) => {
+    res.json({ dbPath: getDbPath() });
+  });
   // Stats (dummy endpoint, returns card/deck counts)
   app.get('/api/stats', (req, res) => {
     const deck = req.query.deck;

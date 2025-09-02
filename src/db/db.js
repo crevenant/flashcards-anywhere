@@ -4,18 +4,41 @@ const path = require('path');
 const fs = require('fs');
 const initSqlJs = require('sql.js');
 
-const DB_PATH = path.join(__dirname, '../../data/flashcards.db');
+function resolveDbPath() {
+  // In packaged Electron, resources path contains extraResources 'data' folder
+  try {
+    const electron = require('electron');
+    const isPackaged = !!(electron.app && electron.app.isPackaged);
+    if (isPackaged && process.resourcesPath) {
+      return path.join(process.resourcesPath, 'data', 'flashcards.db');
+    }
+  } catch (_) {
+    // not in electron main process
+  }
+  return path.join(__dirname, '../../data/flashcards.db');
+}
+
+const DB_PATH = resolveDbPath();
 let db;
 
 async function loadDatabase() {
-  if (!fs.existsSync(DB_PATH)) {
-    console.error('[Backend Startup Error] Database file not found:', DB_PATH);
-    process.exit(1);
+  try {
+    console.log('[DB] Using DB_PATH:', DB_PATH);
+    if (!fs.existsSync(DB_PATH)) {
+      console.error('[Backend Startup Error] Database file not found:', DB_PATH);
+      process.exit(1);
+    }
+    const SQL = await initSqlJs();
+    const filebuffer = fs.readFileSync(DB_PATH);
+    db = new SQL.Database(filebuffer);
+    return db;
+  } catch (e) {
+    console.error('[DB] loadDatabase error:', e);
+    throw e;
   }
-  const SQL = await initSqlJs();
-  const filebuffer = fs.readFileSync(DB_PATH);
-  db = new SQL.Database(filebuffer);
-  return db;
 }
 
-module.exports = { loadDatabase };
+function getDbPath() {
+  return DB_PATH;
+}
+module.exports = { loadDatabase, getDbPath };
