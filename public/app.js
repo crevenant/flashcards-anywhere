@@ -293,55 +293,6 @@
 	 * @param {string} html
 	 * @returns {DocumentFragment}
 	 */
-	function sanitizeHtmlToFragment(html) {
-		const template = document.createElement('template');
-		template.innerHTML = html;
-		function clean(node) {
-			if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.nodeValue);
-			if (node.nodeType === Node.ELEMENT_NODE) {
-				const tag = node.tagName.toLowerCase();
-				if (!ALLOWED_TAGS.has(tag)) {
-					const frag = document.createDocumentFragment();
-					node.childNodes.forEach((ch) => {
-						const c = clean(ch);
-						if (c) frag.appendChild(c);
-					});
-					return frag;
-				}
-				const el = document.createElement(tag);
-				// Copy a safe subset of attributes when allowed
-				if (node.attributes && node.attributes.length) {
-					for (const attr of Array.from(node.attributes)) {
-						const name = attr.name.toLowerCase();
-						const val = sanitizeAttr(tag, name, attr.value);
-						if (val != null) el.setAttribute(name, val);
-					}
-				}
-				node.childNodes.forEach((ch) => {
-					const c = clean(ch);
-					if (c) el.appendChild(c);
-				});
-				return el;
-			}
-			return document.createTextNode('');
-		}
-		const out = document.createDocumentFragment();
-		template.content.childNodes.forEach((n) => {
-			const c = clean(n);
-			if (c) out.appendChild(c);
-		});
-		return out;
-	}
-	/**
-	 * Renders sanitized HTML into a DOM element.
-	 * @param {HTMLElement} el
-	 * @param {string} text
-	 */
-	function renderSafe(el, text) {
-		if (!el) return;
-		el.innerHTML = '';
-		el.appendChild(sanitizeHtmlToFragment(String(text)));
-	}
 
 	/**
 	 * Renders the decks dropdowns and lists in the UI.
@@ -504,7 +455,11 @@
 			body.className = 'mini-scroll';
 			const content = document.createElement('div');
 			content.className = 'mini-content';
-			renderSafe(content, card.front || '');
+			// Normalize front/back to always be strings
+			let front = card.front;
+			if (Array.isArray(front)) front = front.join('');
+			else if (typeof front === 'object' && front !== null) front = JSON.stringify(front);
+			window.renderSafe(content, front || '');
 			body.appendChild(content);
 			if ((card.type || 'basic') === 'mcq') {
 				let choices = card.choices;
@@ -532,7 +487,7 @@
 					if (!txt) return;
 					const d = document.createElement('div');
 					d.className = 'mini-choice correct';
-					renderSafe(d, txt);
+					window.renderSafe(d, txt);
 					mcAns.appendChild(d);
 				});
 				answersWrap.appendChild(mcAns);
@@ -549,7 +504,7 @@
 					const d = document.createElement('div');
 					d.className = 'mini-choice';
 					if ((idxs || []).includes(i)) d.classList.add('correct');
-					renderSafe(d, txt);
+					window.renderSafe(d, txt);
 					mcChoices.appendChild(d);
 				});
 				chWrap.appendChild(mcChoices);
@@ -558,7 +513,11 @@
 				// For basic, show a hint of the back
 				const back = document.createElement('div');
 				back.className = 'mini-choice';
-				renderSafe(back, card.back || '');
+				// Normalize back to always be a string
+				let backStr = card.back;
+				if (Array.isArray(backStr)) backStr = backStr.join('');
+				else if (typeof backStr === 'object' && backStr !== null) backStr = JSON.stringify(backStr);
+				window.renderSafe(back, backStr || '');
 				body.appendChild(back);
 			}
 			tile.appendChild(body);
@@ -643,13 +602,13 @@
 	 */
 	function renderCard() {
 		if (!state.cards.length) {
-			renderSafe(els.frontText, 'No cards yet');
+			window.renderSafe(els.frontText, 'No cards yet');
 			els.choicesSection.hidden = true;
 			els.mcqChoices.hidden = true;
 			els.mcqResult.hidden = true;
 			if (els.srsActions) els.srsActions.hidden = true;
 			if (els.srsActionsBasic) els.srsActionsBasic.hidden = true;
-			renderSafe(els.back, 'Use the form below to add one');
+			window.renderSafe(els.back, 'Use the form below to add one');
 			els.card.classList.toggle('flipped', state.showBack);
 			els.pos.textContent = '0 / 0';
 			return;
@@ -676,18 +635,45 @@
 			state.choiceOrder = null;
 			state.lastCardId = c.id;
 		}
-		renderSafe(els.frontText, c.front);
+		// Debug: log c.front and c.back types/values
+		console.log('RENDER CARD', {
+			front: c.front,
+			back: c.back,
+			typeofFront: typeof c.front,
+			typeofBack: typeof c.back,
+			isArrayFront: Array.isArray(c.front),
+			isArrayBack: Array.isArray(c.back)
+		});
+		// Normalize front to always be a string
+		let front = c.front;
+		if (Array.isArray(front)) front = front.join('');
+		else if (typeof front === 'object' && front !== null) front = JSON.stringify(front);
+		window.renderSafe(els.frontText, front || '');
 		if ((c.type || 'basic') === 'mcq') {
 			// Build choices
 			els.mcqChoices.innerHTML = '';
-			const order = state.choiceOrder || (c.choices || []).map((_, i) => i);
+			// Parse choices as JSON if it's a string
+			let choices = c.choices;
+			if (typeof choices === 'string') {
+				try { choices = JSON.parse(choices); } catch { choices = []; }
+			}
+			if (!Array.isArray(choices)) choices = [];
+			// Always build order from parsed choices array
+			if (!state.choiceOrder || state.choiceOrder.length !== choices.length) {
+				state.choiceOrder = Array.from({ length: choices.length }, (_, i) => i);
+				for (let i = state.choiceOrder.length - 1; i > 0; i--) {
+					const j = Math.floor(Math.random() * (i + 1));
+					[state.choiceOrder[i], state.choiceOrder[j]] = [state.choiceOrder[j], state.choiceOrder[i]];
+				}
+			}
+			const order = state.choiceOrder;
 			// Toggle mini-card layout for choices
 			els.mcqChoices.classList.toggle('cards', !!c.choices_as_cards);
 			order.forEach((origIdx, i) => {
-				const ch = c.choices[origIdx];
+				const ch = choices[origIdx];
 				const btn = document.createElement('button');
 				btn.type = 'button';
-				renderSafe(btn, ch);
+				window.renderSafe(btn, ch);
 				btn.className = 'choice' + (c.choices_as_cards ? ' card-choice' : '');
 				// Staggered entry animation
 				btn.classList.add('enter');
@@ -766,7 +752,7 @@
 				}
 			}
 			if (els.backText) {
-				renderSafe(els.backText, '');
+				window.renderSafe(els.backText, '');
 			}
 			// Keep card unflipped for MCQ
 			state.showBack = false;
@@ -776,9 +762,9 @@
 			els.mcqResult.hidden = true;
 			els.mcqCheck.hidden = true;
 			if (els.backText) {
-				renderSafe(els.backText, c.back);
+				window.renderSafe(els.backText, c.back);
 			} else {
-				renderSafe(els.back, c.back);
+				window.renderSafe(els.back, c.back);
 			}
 		}
 		els.card.classList.toggle('flipped', state.showBack);
@@ -1116,7 +1102,7 @@
 			correctTexts.forEach((text) => {
 				const div = document.createElement('div');
 				div.className = 'choice correct-item correct' + (asCards ? ' card-choice' : '');
-				renderSafe(div, text);
+				window.renderSafe(div, text);
 				list.appendChild(div);
 			});
 			els.mcqResult.appendChild(list);
@@ -1172,6 +1158,8 @@
 		]);
 		renderDecks(decks);
 		state.cards = cards;
+		// Debug: log loaded cards
+		console.log('LOADED CARDS', state.cards);
 		state.idx = 0;
 		state.showBack = false;
 		state.selected = null;
@@ -1280,7 +1268,7 @@
 			div.className = 'stats-row';
 			const front = document.createElement('div');
 			front.className = 'front';
-			renderSafe(front, row.front || '');
+			window.renderSafe(front, row.front || '');
 			div.appendChild(front);
 			const meta = document.createElement('div');
 			meta.className = 'meta';

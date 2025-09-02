@@ -59,7 +59,22 @@
       const stmt = db.prepare(sql);
       if (params) stmt.bind(params);
       const rows = [];
-      while (stmt.step()) rows.push(stmt.getAsObject());
+      while (stmt.step()) {
+        const row = stmt.getAsObject();
+        // Normalize all fields: decode Uint8Array, join arrays, stringify objects
+        for (const k in row) {
+          const v = row[k];
+          if (v instanceof Uint8Array) {
+            // Decode as UTF-8 string
+            row[k] = new TextDecoder('utf-8').decode(v);
+          } else if (Array.isArray(v)) {
+            row[k] = v.join('');
+          } else if (typeof v === 'object' && v !== null) {
+            row[k] = JSON.stringify(v);
+          }
+        }
+        rows.push(row);
+      }
       stmt.free();
       return rows;
     },
