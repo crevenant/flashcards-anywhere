@@ -130,9 +130,6 @@
 					<span id="position">0 / 0</span>
 					<button id="next-btn" aria-label="Next card">▶</button>
 				</div>
-						<div style="margin-top:1em;font-size:0.95em;color:#666">
-							<strong>Database path:</strong> <span id="db-path">(loading...)</span>
-						</div>
 					</section>
 
 			<section id="adder-section" class="adder" hidden>
@@ -383,10 +380,13 @@ Option C"
 
 		<footer>
 			<small>SQLite-backed demo. No external deps.</small>
+			<button id="save-db-btn" style="margin-left:2em">Save DB</button>
 		</footer>
 
 	<script src="./htmlSanitizer.js"></script>
 	<script src="./shuffle.js"></script>
+	<!-- sql.js (WASM) will be loaded by db.js -->
+	<script src="./db.js"></script>
 	<script src="./api.js"></script>
 	<script src="./app.js" defer></script>
 	</body>

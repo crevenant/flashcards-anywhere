@@ -338,6 +338,7 @@
 	 * @param {string} text
 	 */
 	function renderSafe(el, text) {
+		if (!el) return;
 		el.innerHTML = '';
 		el.appendChild(sanitizeHtmlToFragment(String(text)));
 	}
@@ -506,7 +507,11 @@
 			renderSafe(content, card.front || '');
 			body.appendChild(content);
 			if ((card.type || 'basic') === 'mcq') {
-				const choices = card.choices || [];
+				let choices = card.choices;
+				if (typeof choices === 'string') {
+					try { choices = JSON.parse(choices); } catch { choices = []; }
+				}
+				if (!Array.isArray(choices)) choices = [];
 				// Answers section
 				const idxs = card.multi
 					? card.answers || []
@@ -1829,17 +1834,10 @@
 		console.error(err);
 		alert('Failed to load data. See console for details.');
 	});
-	// Show DB path in settings panel
-	async function showDbPath() {
-		try {
-			const res = await fetch('/api/db-path');
-			const data = await res.json();
-			const el = document.getElementById('db-path');
-			if (el) el.textContent = data.dbPath;
-		} catch (e) {
-			const el = document.getElementById('db-path');
-			if (el) el.textContent = 'Error fetching DB path';
+	// Add Save DB button handler
+	document.getElementById('save-db-btn')?.addEventListener('click', () => {
+		if (window.db && window.db.saveToFile) {
+			window.db.saveToFile('flashcards.db');
 		}
-	}
-	showDbPath();
+	});
 })();

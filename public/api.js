@@ -2,95 +2,91 @@
 // Detect if running in Electron (file:// protocol)
 const isElectron = window.location.protocol === 'file:';
 const API_BASE = isElectron ? 'http://localhost:8000' : '';
+// Pure JS SQLite API using window.db (sql.js)
 window.api = {
   async decks() {
-    const res = await fetch(`${API_BASE}/api/decks`);
-    if (!res.ok) throw new Error('Failed to fetch decks');
-    const data = await res.json();
-    return data.decks || [];
+    await window.dbReady;
+    return window.db.query('SELECT * FROM decks');
   },
   async cards(deckName = '') {
-    const url = deckName ? `${API_BASE}/api/cards?deck=${encodeURIComponent(deckName)}` : `${API_BASE}/api/cards`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Failed to fetch cards');
-    const data = await res.json();
-    return data.cards || [];
+    await window.dbReady;
+    if (deckName) {
+      return window.db.query('SELECT * FROM cards WHERE deck_id = ?', [deckName]);
+    } else {
+      return window.db.query('SELECT * FROM cards');
+    }
   },
   async srsDue(deckName = '', limit = 100) {
-    const url = `${API_BASE}/api/srs/due?deck=${encodeURIComponent(deckName)}&limit=${limit}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Failed to fetch SRS due cards');
-    const data = await res.json();
-    return data.cards || [];
+    await window.dbReady;
+    let sql = 'SELECT * FROM cards WHERE due <= date("now")';
+    const params = [];
+    if (deckName) {
+      sql += ' AND deck_id = ?';
+      params.push(deckName);
+    }
+    sql += ' LIMIT ?';
+    params.push(limit);
+    return window.db.query(sql, params);
   },
   async stats(deckName = '') {
-    const url = deckName ? `${API_BASE}/api/stats?deck=${encodeURIComponent(deckName)}` : `${API_BASE}/api/stats`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Failed to fetch stats');
-    return await res.json();
+    await window.dbReady;
+    if (deckName) {
+      const cards = window.db.query('SELECT COUNT(*) as cardCount FROM cards WHERE deck_id = ?', [deckName]);
+      return { deck: deckName, cardCount: cards[0]?.cardCount || 0 };
+    } else {
+      const cardCount = window.db.query('SELECT COUNT(*) as cardCount FROM cards')[0]?.cardCount || 0;
+      const deckCount = window.db.query('SELECT COUNT(*) as deckCount FROM decks')[0]?.deckCount || 0;
+      return { cardCount, deckCount };
+    }
   },
   async addCard(card) {
-    const res = await fetch(`${API_BASE}/api/cards`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(card),
-    });
-    if (!res.ok) throw new Error('Failed to add card');
-    return res.json();
+    await window.dbReady;
+    // card: { front, back, deck_id, ... }
+    const keys = Object.keys(card);
+    const vals = keys.map(k => card[k]);
+    const placeholders = keys.map(() => '?').join(',');
+    window.db.exec(`INSERT INTO cards (${keys.join(',')}) VALUES (${placeholders})`, vals);
+    return { success: true };
   },
   async updateCard(id, patch) {
-    const res = await fetch(`${API_BASE}/api/cards/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    });
-    if (!res.ok) throw new Error('Failed to update card');
-    return res.json();
+    await window.dbReady;
+    const keys = Object.keys(patch);
+    const vals = keys.map(k => patch[k]);
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    vals.push(id);
+    window.db.exec(`UPDATE cards SET ${setClause} WHERE id = ?`, vals);
+    return { success: true };
   },
   async deleteCard(id) {
-    const res = await fetch(`${API_BASE}/api/cards/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Failed to delete card');
-    return res.json();
+    await window.dbReady;
+    window.db.exec('DELETE FROM cards WHERE id = ?', [id]);
+    return { success: true };
   },
   async createDeck(name) {
-    const res = await fetch(`${API_BASE}/api/decks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-    if (!res.ok) throw new Error('Failed to create deck');
-    return res.json();
+    await window.dbReady;
+    window.db.exec('INSERT INTO decks (name) VALUES (?)', [name]);
+    return { success: true };
   },
   async deleteDeck(id) {
-    const res = await fetch(`${API_BASE}/api/decks/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Failed to delete deck');
-    return res.json();
+    await window.dbReady;
+    window.db.exec('DELETE FROM decks WHERE id = ?', [id]);
+    return { success: true };
   },
   async renameDeck(id, name) {
-    const res = await fetch(`${API_BASE}/api/decks/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-    if (!res.ok) throw new Error('Failed to rename deck');
-    return res.json();
+    await window.dbReady;
+    window.db.exec('UPDATE decks SET name = ? WHERE id = ?', [name, id]);
+    return { success: true };
   },
   async srsReview(id, grade) {
-    const res = await fetch(`${API_BASE}/api/srs/review/${id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ grade }),
-    });
-    if (!res.ok) throw new Error('Failed to review SRS card');
-    return res.json();
+    await window.dbReady;
+    // Example: update due date or stats based on grade
+    // This is a stub; real SRS logic should be implemented as needed
+    window.db.exec('UPDATE cards SET last_review = date("now") WHERE id = ?', [id]);
+    return { success: true };
   },
   async review(id, result, durationMs) {
-    const res = await fetch(`${API_BASE}/api/reviews`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, result, durationMs }),
-    });
-    if (!res.ok) throw new Error('Failed to log review');
-    return res.json();
+    await window.dbReady;
+    // Example: log review result (not implemented in schema)
+    return { success: true };
   },
 };
