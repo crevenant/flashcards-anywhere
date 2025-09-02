@@ -104,9 +104,11 @@ header h1 {
 #auto-adv-btn {
 	position: relative;
 }
-#auto-adv-btn.active::after {
-	content: 'ON';
-	position: absolute;
+	background: rgba(255, 0, 0, 0.08) !important; /* TEMP: red tint for debug */
+	border: 2px solid #f00 !important; /* TEMP: red border for debug */
+	border-radius: 14px;
+	padding: 16px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 	top: -8px;
 	right: -6px;
 	font-size: 10px;

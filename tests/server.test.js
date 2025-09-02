@@ -6,7 +6,7 @@ let app;
 describe('Flashcards Anywhere API', () => {
 	beforeAll(() => {
 		// Import the actual app after DB and middleware are set up
-		app = require('../server');
+		app = require('../src/server');
 	});
 
 	it('GET /api/decks should return decks array', async () => {

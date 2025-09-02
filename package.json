@@ -4,7 +4,7 @@
 	"description": "Flashcards Anywhere Electron app",
 	"main": "main.js",
 	"scripts": {
-		"start:server": "node server.js",
+		"start:server": "node src/server.js",
 		"start:electron": "electron .",
 		"start:all": "concurrently \"npm run start:server\" \"npm run start:electron\"",
 		"start": "npm run start:all",
@@ -52,9 +52,7 @@
 	"dependencies": {
 		"express": "^4.19.2",
 		"node-fetch": "^2.7.0",
-		"sqlite3": "^5.1.7"
-	},
-	"jest": {
-		"testEnvironment": "node"
-	}
+		"sqlite3": "^5.1.7",
+			"supertest": "^7.1.4"
+		}
 }

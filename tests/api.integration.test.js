@@ -1,6 +1,6 @@
 /* eslint-env node, jest */
 const request = require('supertest');
-const app = require('../server');
+const app = require('../src/server');
 
 describe('Flashcards Anywhere API (integration)', () => {
 	let createdDeckId;

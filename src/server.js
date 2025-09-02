@@ -1,4 +1,14 @@
 /* eslint-env node */
+
+// Global error handlers for debugging server crashes
+process.on('uncaughtException', (err) => {
+	console.error('[Uncaught Exception]', err);
+	process.exit(1);
+});
+process.on('unhandledRejection', (reason, promise) => {
+	console.error('[Unhandled Rejection]', reason);
+	process.exit(1);
+});
 const registerGlobalErrorHandlers = require('./middleware/globalErrorHandlers');
 registerGlobalErrorHandlers();
 console.log('Starting server.js...');
@@ -22,9 +32,12 @@ const app = express();
 const PORT = config.PORT;
 
 
+
 // Middleware: parse JSON request bodies and serve static frontend files
 app.use(bodyParser.json());
 app.use(express.static(config.PUBLIC_DIR));
+// Serve frontend utilities (for browser import)
+app.use('/src/frontend/utils', express.static(path.join(__dirname, 'frontend', 'utils')));
 
 
 // Register modular API routes

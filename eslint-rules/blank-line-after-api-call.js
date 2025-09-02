@@ -19,20 +19,24 @@ module.exports = {
 			ExpressionStatement(node) {
 				const sourceCode = context.getSourceCode();
 				const text = sourceCode.getText(node);
-				// Only match fetch/axios/API_BASE calls on lines 15, 23, 32, ...
-				const targetLines = new Set([15, 23, 32]);
-				if (/fetch\(|axios\.|API_BASE/.test(text) && targetLines.has(node.loc.start.line)) {
-					const nextToken = sourceCode.getTokenAfter(node, { includeComments: true });
-					if (nextToken && nextToken.loc.start.line === node.loc.end.line + 1) {
-						context.report({
-							node,
-							message: 'Expected blank line after API call.',
-							fix(fixer) {
-								return fixer.insertTextAfter(node, '\n');
-							},
-						});
-					}
-				}
+						// Match any fetch/axios/API_BASE call
+						if (/fetch\(|axios\.|API_BASE/.test(text)) {
+							const endLine = node.loc.end.line;
+							const nextToken = sourceCode.getTokenAfter(node, { includeComments: true });
+							if (nextToken && nextToken.loc.start.line === endLine + 1) {
+								const lines = sourceCode.lines;
+								// Check if the line after the API call is not blank
+								if (lines[endLine] && lines[endLine].trim() !== '') {
+									context.report({
+									node,
+									message: 'Expected blank line after API call.',
+									fix(fixer) {
+										return fixer.insertTextAfter(node, '\n');
+									},
+								});
+								}
+							}
+						}
 			},
 		};
 	},
