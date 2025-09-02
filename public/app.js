@@ -1,6 +1,49 @@
+	form: document.getElementById('add-form'),
 // Use utilities attached to window (see below for attaching them)
 
 (() => {
+	// Dummy clearCardTimer to prevent ReferenceError (implement as needed)
+	function clearCardTimer() {}
+	// Global app state
+	const state = {
+		cards: [],
+		idx: 0,
+		showBack: false,
+		deckName: '',
+		selected: null,
+		correct: null,
+		resetTimer: null,
+		multiSelected: new Set(),
+		multiChecked: false,
+		showAdder: false,
+		showDecks: false,
+		showCards: false,
+		showStats: false,
+		showSettings: false,
+		statsPage: 1,
+		statsPerPage: 5,
+		statsPerCard: [],
+		srsMode: false,
+		lastCardId: null,
+		choiceOrder: null,
+		deckMap: {},
+		cardsPage: 1,
+		cardsPerPage: 5,
+		cardsFilter: '',
+		timerEnabled: false,
+		autoAdvanceEnabled: false,
+		timerDurationMs: 10000,
+		autoAdvanceDelayMs: 5000,
+		timerStart: null,
+		timerRAF: null,
+		timerHold: false,
+		timeoutReveal: false,
+		autoAdvanceTimer: null,
+		autoAdvanceStart: null,
+		autoAdvanceRAF: null,
+		viewStart: null,
+		logged: false,
+	};
 	// Robust Electron detection for all Electron versions/contexts
 	// Fallback: if loaded as file://, assume Electron and use localhost backend
 	// isElectron removed (was unused)
@@ -21,6 +64,62 @@
 		mcqChoices: document.getElementById('mcq-choices'),
 		mcqResult: document.getElementById('mcq-result'),
 		srsActions: document.getElementById('srs-actions'),
+		srsActionsBasic: document.getElementById('srs-actions-basic'),
+		mcqCheck: document.getElementById('mcq-check'),
+		next: document.getElementById('next-btn'),
+		prev: document.getElementById('prev-btn'),
+		shuffleBtn: document.getElementById('shuffle-btn'),
+		typeInput: document.getElementById('type-input'),
+		multiInput: document.getElementById('multi-input'),
+		deckSelect: document.getElementById('deck-select'),
+		deckInput: document.getElementById('deck-input'),
+		decksList: document.getElementById('decks-list'),
+		cardsList: document.getElementById('cards-list'),
+		cardsPage: document.getElementById('cards-page'),
+		cardsPrev: document.getElementById('cards-prev'),
+		cardsNext: document.getElementById('cards-next'),
+		cardsCount: document.getElementById('cards-count'),
+		setDefaultDeck: document.getElementById('set-default-deck'),
+		pos: document.getElementById('position'),
+		autoAdvBtn: document.getElementById('auto-adv-btn'),
+		viewerSection: document.getElementById('main'),
+		front: document.getElementById('card-front'),
+		backFace: document.getElementById('card-back'),
+		timerBtn: document.getElementById('timer-btn'),
+		srsModeBtn: document.getElementById('srs-mode-btn'),
+		toggleAddBtn: document.getElementById('toggle-add-btn'),
+		toggleDecksBtn: document.getElementById('toggle-decks-btn'),
+		toggleCardsBtn: document.getElementById('toggle-cards-btn'),
+		toggleStatsBtn: document.getElementById('toggle-stats-btn'),
+		toggleSettingsBtn: document.getElementById('toggle-settings-btn'),
+		settingsApply: document.getElementById('settings-apply'),
+		statsPrev: document.getElementById('stats-prev'),
+		statsNext: document.getElementById('stats-next'),
+		statsPageEl: document.getElementById('stats-page'),
+		statsDeckName: document.getElementById('stats-deck-name'),
+		statsSummary: document.getElementById('stats-summary'),
+		statsList: document.getElementById('stats-list'),
+		cardsFilterInput: document.getElementById('cards-filter'),
+		cardsPageSize: document.getElementById('cards-page-size'),
+		deckAddForm: document.getElementById('deck-add-form'),
+		deckNewInput: document.getElementById('deck-new-input'),
+		form: document.getElementById('add-form'),
+		frontInput: document.getElementById('front-input'),
+		backInput: document.getElementById('back-input'),
+		backLabel: document.getElementById('back-label'),
+		mcqFields: document.getElementById('mcq-fields'),
+		choicesInput: document.getElementById('choices-input'),
+		answersInput: document.getElementById('answers-input'),
+		answerInput: document.getElementById('answer-input'),
+		multiAnswerRow: document.getElementById('multi-answer-row'),
+		singleAnswerRow: document.getElementById('single-answer-row'),
+		choicesCardsInput: document.getElementById('choices-cards-input'),
+		clearBtn: document.getElementById('clear-btn'),
+		adderSection: document.getElementById('adder-section'),
+		decksSection: document.getElementById('decks-section'),
+		cardsSection: document.getElementById('cards-section'),
+		settingsSection: document.getElementById('settings-section'),
+		statsSection: document.getElementById('stats-section'),
 	};
 
 	/**
@@ -76,7 +175,9 @@
 			state.showStats ||
 			state.showSettings
 		);
-		if (els.viewerSection) els.viewerSection.hidden = anyOpen;
+		// Only hide the .viewer section, not the entire <main>
+		const viewer = document.querySelector('.viewer');
+		if (viewer) viewer.hidden = anyOpen;
 	}
 	// const DELAY_MS = 1200; // delay before reset/advance (unused)
 	// const FLIP_MS = 500; // CSS flip transition duration (keep in sync with styles) (unused)
@@ -1505,10 +1606,17 @@
 
 	function setPanelVisible(el, show) {
 		const DURATION = 220;
+		// Debug log for panel visibility
+		if (el) {
+			console.log('[setPanelVisible]', el.id || el, 'show:', show, 'hidden:', el.hidden);
+		} else {
+			console.warn('[setPanelVisible] called with null element');
+		}
 		if (show) {
-			if (!el) return;
-			el.hidden = false;
-			requestAnimationFrame(() => el.classList.add('open'));
+		if (!el) return;
+		el.hidden = false;
+		console.log('[setPanelVisible after show]', el.id || el, 'hidden:', el.hidden);
+		requestAnimationFrame(() => el.classList.add('open'));
 		} else {
 			if (!el) return;
 			el.classList.remove('open');
