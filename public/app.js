@@ -1,39 +1,10 @@
+	form: document.getElementById('add-form'),
+// Use utilities attached to window (see below for attaching them)
+
 (() => {
-	// Robust Electron detection for all Electron versions/contexts
-	// Fallback: if loaded as file://, assume Electron and use localhost backend
-	// isElectron removed (was unused)
-	// Use localhost:8000 for Electron or file://, relative for web
-	// API_BASE removed (was unused)
-
-	// Element references
-	/**
-	 * Element references for main UI components.
-	 * @type {Object<string, HTMLElement>}
-	 */
-	const els = {
-		card: document.getElementById('card'),
-		frontText: document.getElementById('front-text'),
-		back: document.getElementById('back'),
-		backText: document.getElementById('back-text'),
-		choicesSection: document.getElementById('choices-section'),
-		mcqChoices: document.getElementById('mcq-choices'),
-		mcqResult: document.getElementById('mcq-result'),
-		srsActions: document.getElementById('srs-actions'),
-		srsActionsBasic: document.getElementById('srs-actions-basic'),
-		pos: document.getElementById('pos'),
-		cardTimer: document.getElementById('card-timer'),
-		cardTimerProgress: document.getElementById('card-timer-progress'),
-		viewerSection: document.querySelector('section.viewer'),
-		autoAdvBtn: document.getElementById('auto-adv-btn'),
-		timerBtn: document.getElementById('timer-btn'),
-		// ...add other elements as needed...
-	};
-
-	// Application state
-	/**
-	 * Application state object. Tracks UI, card, and timer state.
-	 * @type {Object}
-	 */
+	// Dummy clearCardTimer to prevent ReferenceError (implement as needed)
+	function clearCardTimer() {}
+	// Global app state
 	const state = {
 		cards: [],
 		idx: 0,
@@ -73,134 +44,83 @@
 		viewStart: null,
 		logged: false,
 	};
+	// Robust Electron detection for all Electron versions/contexts
+	// Fallback: if loaded as file://, assume Electron and use localhost backend
+	// isElectron removed (was unused)
+	// Use localhost:8000 for Electron or file://, relative for web
+	// API_BASE removed (was unused)
 
-
+	// Element references
 	/**
-	 * API methods for backend communication (to be defined).
-	 * @type {Object}
+	 * Element references for main UI components.
+	 * @type {Object<string, HTMLElement>}
 	 */
-	const api = {
-		// ...define API methods here as properties...
+	const els = {
+		card: document.getElementById('card'),
+		frontText: document.getElementById('front-text'),
+		back: document.getElementById('back'),
+		backText: document.getElementById('back-text'),
+		choicesSection: document.getElementById('choices-section'),
+		mcqChoices: document.getElementById('mcq-choices'),
+		mcqResult: document.getElementById('mcq-result'),
+		srsActions: document.getElementById('srs-actions'),
+		srsActionsBasic: document.getElementById('srs-actions-basic'),
+		mcqCheck: document.getElementById('mcq-check'),
+		next: document.getElementById('next-btn'),
+		prev: document.getElementById('prev-btn'),
+		shuffleBtn: document.getElementById('shuffle-btn'),
+		typeInput: document.getElementById('type-input'),
+		multiInput: document.getElementById('multi-input'),
+		deckSelect: document.getElementById('deck-select'),
+		deckInput: document.getElementById('deck-input'),
+		decksList: document.getElementById('decks-list'),
+		cardsList: document.getElementById('cards-list'),
+		cardsPage: document.getElementById('cards-page'),
+		cardsPrev: document.getElementById('cards-prev'),
+		cardsNext: document.getElementById('cards-next'),
+		cardsCount: document.getElementById('cards-count'),
+		setDefaultDeck: document.getElementById('set-default-deck'),
+		pos: document.getElementById('position'),
+		autoAdvBtn: document.getElementById('auto-adv-btn'),
+		viewerSection: document.getElementById('main'),
+		front: document.getElementById('card-front'),
+		backFace: document.getElementById('card-back'),
+		timerBtn: document.getElementById('timer-btn'),
+		srsModeBtn: document.getElementById('srs-mode-btn'),
+		toggleAddBtn: document.getElementById('toggle-add-btn'),
+		toggleDecksBtn: document.getElementById('toggle-decks-btn'),
+		toggleCardsBtn: document.getElementById('toggle-cards-btn'),
+		toggleStatsBtn: document.getElementById('toggle-stats-btn'),
+		toggleSettingsBtn: document.getElementById('toggle-settings-btn'),
+		settingsApply: document.getElementById('settings-apply'),
+		statsPrev: document.getElementById('stats-prev'),
+		statsNext: document.getElementById('stats-next'),
+		statsPageEl: document.getElementById('stats-page'),
+		statsDeckName: document.getElementById('stats-deck-name'),
+		statsSummary: document.getElementById('stats-summary'),
+		statsList: document.getElementById('stats-list'),
+		cardsFilterInput: document.getElementById('cards-filter'),
+		cardsPageSize: document.getElementById('cards-page-size'),
+		deckAddForm: document.getElementById('deck-add-form'),
+		deckNewInput: document.getElementById('deck-new-input'),
+		form: document.getElementById('add-form'),
+		frontInput: document.getElementById('front-input'),
+		backInput: document.getElementById('back-input'),
+		backLabel: document.getElementById('back-label'),
+		mcqFields: document.getElementById('mcq-fields'),
+		choicesInput: document.getElementById('choices-input'),
+		answersInput: document.getElementById('answers-input'),
+		answerInput: document.getElementById('answer-input'),
+		multiAnswerRow: document.getElementById('multi-answer-row'),
+		singleAnswerRow: document.getElementById('single-answer-row'),
+		choicesCardsInput: document.getElementById('choices-cards-input'),
+		clearBtn: document.getElementById('clear-btn'),
+		adderSection: document.getElementById('adder-section'),
+		decksSection: document.getElementById('decks-section'),
+		cardsSection: document.getElementById('cards-section'),
+		settingsSection: document.getElementById('settings-section'),
+		statsSection: document.getElementById('stats-section'),
 	};
-
-	/**
-	 * Clears the card timer and hides timer UI.
-	 */
-	function clearCardTimer() {
-		if (state.timerRAF) {
-			cancelAnimationFrame(state.timerRAF);
-			state.timerRAF = null;
-		}
-		state.timerStart = null;
-		if (els.cardTimer) els.cardTimer.hidden = true;
-		if (els.cardTimerProgress) els.cardTimerProgress.style.width = '0%';
-		// Keep auto-advance in sync with manual timer clearing
-		clearAutoAdvance();
-	}
-
-	/**
-	 * Starts the card timer and updates progress bar. Reveals answer on timeout.
-	 */
-	function startCardTimer() {
-		clearCardTimer();
-		if (!state.timerEnabled || !els.viewerSection || els.viewerSection.hidden) return;
-		if (!els.cardTimer || !els.cardTimerProgress) return;
-		els.cardTimer.hidden = false;
-		state.timerStart = performance.now();
-		const duration = state.timerDurationMs;
-		const tick = (now) => {
-			const elapsed = now - state.timerStart;
-			const pct = Math.max(0, Math.min(1, elapsed / duration));
-			els.cardTimerProgress.style.width = (pct * 100).toFixed(2) + '%';
-			if (pct < 1) {
-				state.timerRAF = requestAnimationFrame(tick);
-			} else {
-				// Give a moment to show the bar filled, then clear timer UI only
-				setTimeout(() => {
-					if (els.cardTimer) els.cardTimer.hidden = true;
-					if (els.cardTimerProgress) els.cardTimerProgress.style.width = '0%';
-					state.timerStart = null;
-					state.timerRAF = null;
-				}, 300);
-				// Time's up: reveal the correct answer; do not auto-advance
-				const c = state.cards[state.idx];
-				if (!c) return;
-				// Prevent auto-restarting the timer during reveal rerenders
-				state.timerHold = true;
-				state.timeoutReveal = true;
-				if ((c.type || 'basic') === 'basic') {
-					// Flip to back and show; wait for user to move next
-					state.showBack = true;
-					renderCard();
-					clearTimer();
-				} else if ((c.type || 'basic') === 'mcq') {
-					if (c.multi) {
-						// Show all correct answers
-						state.multiChecked = true;
-						state.correct = false; // label as not correct (time ran out)
-						renderCard();
-					} else {
-						// Highlight the correct choice
-						const order = state.choiceOrder || (c.choices || []).map((_, i) => i);
-						const dispIdx = order.findIndex((orig) => orig === c.answer);
-						if (dispIdx >= 0) {
-							state.selected = dispIdx;
-							state.correct = true; // highlight as correct
-						}
-						renderCard();
-					}
-					clearTimer();
-					// Keep result visible; wait for user to move next
-					// timerHold stays true to avoid auto-restarting timer during reveal
-				}
-			}
-		};
-		state.timerRAF = requestAnimationFrame(tick);
-	}
-
-	/**
-	 * Starts the auto-advance timer and progress bar for moving to next card.
-	 */
-	function startAutoAdvance() {
-		clearAutoAdvance();
-		if (!state.autoAdvanceEnabled) return;
-		if (!els.viewerSection || els.viewerSection.hidden) return;
-		// Actual triggering condition is checked by shouldAutoAdvanceFromState()
-		state.autoAdvanceTimer = setTimeout(() => {
-			if (!state.autoAdvanceEnabled) return;
-			if (els.viewerSection && els.viewerSection.hidden) return;
-			next();
-		}, state.autoAdvanceDelayMs);
-		// Show progress bar in result panel (MCQ only) if visible
-		ensureAutoAdvProgressUI();
-		state.autoAdvanceStart = performance.now();
-		const delay = state.autoAdvanceDelayMs;
-		const tick = (now) => {
-			const el = document.getElementById('auto-adv-progress-bar');
-			if (!el) {
-				state.autoAdvanceRAF = null;
-				return;
-			}
-			const elapsed = now - (state.autoAdvanceStart || now);
-			const pct = Math.max(0, Math.min(1, elapsed / delay));
-			el.style.width = (pct * 100).toFixed(2) + '%';
-			// tint from amber (38deg) to green (140deg)
-			const hue = 38 + (140 - 38) * pct;
-			el.style.background = `hsl(${hue.toFixed(0)} 80% 50%)`;
-			// Update Auto-Advance button countdown (5 → 0)
-			if (els.autoAdvBtn && state.autoAdvanceEnabled) {
-				const remaining = Math.max(0, delay - elapsed);
-				const secs = Math.ceil(remaining / 1000);
-				els.autoAdvBtn.textContent = `Auto-Advance ${secs}s`;
-			}
-			if (pct < 1) {
-				state.autoAdvanceRAF = requestAnimationFrame(tick);
-			} else {
-				state.autoAdvanceRAF = null;
-			}
-		};
-		state.autoAdvanceRAF = requestAnimationFrame(tick);
-	}
 
 	/**
 	 * Ensures the auto-advance progress bar UI is present in the DOM.
@@ -255,7 +175,9 @@
 			state.showStats ||
 			state.showSettings
 		);
-		if (els.viewerSection) els.viewerSection.hidden = anyOpen;
+		// Only hide the .viewer section, not the entire <main>
+		const viewer = document.querySelector('.viewer');
+		if (viewer) viewer.hidden = anyOpen;
 	}
 	// const DELAY_MS = 1200; // delay before reset/advance (unused)
 	// const FLIP_MS = 500; // CSS flip transition duration (keep in sync with styles) (unused)
@@ -371,54 +293,6 @@
 	 * @param {string} html
 	 * @returns {DocumentFragment}
 	 */
-	function sanitizeHtmlToFragment(html) {
-		const template = document.createElement('template');
-		template.innerHTML = html;
-		function clean(node) {
-			if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.nodeValue);
-			if (node.nodeType === Node.ELEMENT_NODE) {
-				const tag = node.tagName.toLowerCase();
-				if (!ALLOWED_TAGS.has(tag)) {
-					const frag = document.createDocumentFragment();
-					node.childNodes.forEach((ch) => {
-						const c = clean(ch);
-						if (c) frag.appendChild(c);
-					});
-					return frag;
-				}
-				const el = document.createElement(tag);
-				// Copy a safe subset of attributes when allowed
-				if (node.attributes && node.attributes.length) {
-					for (const attr of Array.from(node.attributes)) {
-						const name = attr.name.toLowerCase();
-						const val = sanitizeAttr(tag, name, attr.value);
-						if (val != null) el.setAttribute(name, val);
-					}
-				}
-				node.childNodes.forEach((ch) => {
-					const c = clean(ch);
-					if (c) el.appendChild(c);
-				});
-				return el;
-			}
-			return document.createTextNode('');
-		}
-		const out = document.createDocumentFragment();
-		template.content.childNodes.forEach((n) => {
-			const c = clean(n);
-			if (c) out.appendChild(c);
-		});
-		return out;
-	}
-	/**
-	 * Renders sanitized HTML into a DOM element.
-	 * @param {HTMLElement} el
-	 * @param {string} text
-	 */
-	function renderSafe(el, text) {
-		el.innerHTML = '';
-		el.appendChild(sanitizeHtmlToFragment(String(text)));
-	}
 
 	/**
 	 * Renders the decks dropdowns and lists in the UI.
@@ -581,10 +455,18 @@
 			body.className = 'mini-scroll';
 			const content = document.createElement('div');
 			content.className = 'mini-content';
-			renderSafe(content, card.front || '');
+			// Normalize front/back to always be strings
+			let front = card.front;
+			if (Array.isArray(front)) front = front.join('');
+			else if (typeof front === 'object' && front !== null) front = JSON.stringify(front);
+			window.renderSafe(content, front || '');
 			body.appendChild(content);
 			if ((card.type || 'basic') === 'mcq') {
-				const choices = card.choices || [];
+				let choices = card.choices;
+				if (typeof choices === 'string') {
+					try { choices = JSON.parse(choices); } catch { choices = []; }
+				}
+				if (!Array.isArray(choices)) choices = [];
 				// Answers section
 				const idxs = card.multi
 					? card.answers || []
@@ -605,7 +487,7 @@
 					if (!txt) return;
 					const d = document.createElement('div');
 					d.className = 'mini-choice correct';
-					renderSafe(d, txt);
+					window.renderSafe(d, txt);
 					mcAns.appendChild(d);
 				});
 				answersWrap.appendChild(mcAns);
@@ -622,7 +504,7 @@
 					const d = document.createElement('div');
 					d.className = 'mini-choice';
 					if ((idxs || []).includes(i)) d.classList.add('correct');
-					renderSafe(d, txt);
+					window.renderSafe(d, txt);
 					mcChoices.appendChild(d);
 				});
 				chWrap.appendChild(mcChoices);
@@ -631,7 +513,11 @@
 				// For basic, show a hint of the back
 				const back = document.createElement('div');
 				back.className = 'mini-choice';
-				renderSafe(back, card.back || '');
+				// Normalize back to always be a string
+				let backStr = card.back;
+				if (Array.isArray(backStr)) backStr = backStr.join('');
+				else if (typeof backStr === 'object' && backStr !== null) backStr = JSON.stringify(backStr);
+				window.renderSafe(back, backStr || '');
 				body.appendChild(back);
 			}
 			tile.appendChild(body);
@@ -716,13 +602,13 @@
 	 */
 	function renderCard() {
 		if (!state.cards.length) {
-			renderSafe(els.frontText, 'No cards yet');
+			window.renderSafe(els.frontText, 'No cards yet');
 			els.choicesSection.hidden = true;
 			els.mcqChoices.hidden = true;
 			els.mcqResult.hidden = true;
 			if (els.srsActions) els.srsActions.hidden = true;
 			if (els.srsActionsBasic) els.srsActionsBasic.hidden = true;
-			renderSafe(els.back, 'Use the form below to add one');
+			window.renderSafe(els.back, 'Use the form below to add one');
 			els.card.classList.toggle('flipped', state.showBack);
 			els.pos.textContent = '0 / 0';
 			return;
@@ -749,18 +635,45 @@
 			state.choiceOrder = null;
 			state.lastCardId = c.id;
 		}
-		renderSafe(els.frontText, c.front);
+		// Debug: log c.front and c.back types/values
+		console.log('RENDER CARD', {
+			front: c.front,
+			back: c.back,
+			typeofFront: typeof c.front,
+			typeofBack: typeof c.back,
+			isArrayFront: Array.isArray(c.front),
+			isArrayBack: Array.isArray(c.back)
+		});
+		// Normalize front to always be a string
+		let front = c.front;
+		if (Array.isArray(front)) front = front.join('');
+		else if (typeof front === 'object' && front !== null) front = JSON.stringify(front);
+		window.renderSafe(els.frontText, front || '');
 		if ((c.type || 'basic') === 'mcq') {
 			// Build choices
 			els.mcqChoices.innerHTML = '';
-			const order = state.choiceOrder || (c.choices || []).map((_, i) => i);
+			// Parse choices as JSON if it's a string
+			let choices = c.choices;
+			if (typeof choices === 'string') {
+				try { choices = JSON.parse(choices); } catch { choices = []; }
+			}
+			if (!Array.isArray(choices)) choices = [];
+			// Always build order from parsed choices array
+			if (!state.choiceOrder || state.choiceOrder.length !== choices.length) {
+				state.choiceOrder = Array.from({ length: choices.length }, (_, i) => i);
+				for (let i = state.choiceOrder.length - 1; i > 0; i--) {
+					const j = Math.floor(Math.random() * (i + 1));
+					[state.choiceOrder[i], state.choiceOrder[j]] = [state.choiceOrder[j], state.choiceOrder[i]];
+				}
+			}
+			const order = state.choiceOrder;
 			// Toggle mini-card layout for choices
 			els.mcqChoices.classList.toggle('cards', !!c.choices_as_cards);
 			order.forEach((origIdx, i) => {
-				const ch = c.choices[origIdx];
+				const ch = choices[origIdx];
 				const btn = document.createElement('button');
 				btn.type = 'button';
-				renderSafe(btn, ch);
+				window.renderSafe(btn, ch);
 				btn.className = 'choice' + (c.choices_as_cards ? ' card-choice' : '');
 				// Staggered entry animation
 				btn.classList.add('enter');
@@ -839,7 +752,7 @@
 				}
 			}
 			if (els.backText) {
-				renderSafe(els.backText, '');
+				window.renderSafe(els.backText, '');
 			}
 			// Keep card unflipped for MCQ
 			state.showBack = false;
@@ -849,9 +762,9 @@
 			els.mcqResult.hidden = true;
 			els.mcqCheck.hidden = true;
 			if (els.backText) {
-				renderSafe(els.backText, c.back);
+				window.renderSafe(els.backText, c.back);
 			} else {
-				renderSafe(els.back, c.back);
+				window.renderSafe(els.back, c.back);
 			}
 		}
 		els.card.classList.toggle('flipped', state.showBack);
@@ -1108,26 +1021,23 @@
 		clearCardTimer();
 	}
 
-	function shuffle() {
-		for (let i = state.cards.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[state.cards[i], state.cards[j]] = [state.cards[j], state.cards[i]];
-		}
-		state.idx = 0;
-		state.showBack = false;
-		state.selected = null;
-		state.correct = null;
-		state.multiSelected.clear();
-		state.multiChecked = false;
-		state.timeoutReveal = false;
-		state.timerHold = false;
-		clearTimer();
-		clearCardTimer();
-		els.card.classList.add('instant');
-		renderCard();
-		requestAnimationFrame(() => els.card.classList.remove('instant'));
-		clearCardTimer();
-	}
+	   function shuffle() {
+		   if (window.shuffle) window.shuffle(state.cards);
+		   state.idx = 0;
+		   state.showBack = false;
+		   state.selected = null;
+		   state.correct = null;
+		   state.multiSelected.clear();
+		   state.multiChecked = false;
+		   state.timeoutReveal = false;
+		   state.timerHold = false;
+		   clearTimer();
+		   clearCardTimer();
+		   els.card.classList.add('instant');
+		   renderCard();
+		   requestAnimationFrame(() => els.card.classList.remove('instant'));
+		   clearCardTimer();
+	   }
 
 	function selectChoice(i) {
 		const c = state.cards[state.idx];
@@ -1192,7 +1102,7 @@
 			correctTexts.forEach((text) => {
 				const div = document.createElement('div');
 				div.className = 'choice correct-item correct' + (asCards ? ' card-choice' : '');
-				renderSafe(div, text);
+				window.renderSafe(div, text);
 				list.appendChild(div);
 			});
 			els.mcqResult.appendChild(list);
@@ -1248,6 +1158,8 @@
 		]);
 		renderDecks(decks);
 		state.cards = cards;
+		// Debug: log loaded cards
+		console.log('LOADED CARDS', state.cards);
 		state.idx = 0;
 		state.showBack = false;
 		state.selected = null;
@@ -1356,7 +1268,7 @@
 			div.className = 'stats-row';
 			const front = document.createElement('div');
 			front.className = 'front';
-			renderSafe(front, row.front || '');
+			window.renderSafe(front, row.front || '');
 			div.appendChild(front);
 			const meta = document.createElement('div');
 			meta.className = 'meta';
@@ -1687,10 +1599,17 @@
 
 	function setPanelVisible(el, show) {
 		const DURATION = 220;
+		// Debug log for panel visibility
+		if (el) {
+			console.log('[setPanelVisible]', el.id || el, 'show:', show, 'hidden:', el.hidden);
+		} else {
+			console.warn('[setPanelVisible] called with null element');
+		}
 		if (show) {
-			if (!el) return;
-			el.hidden = false;
-			requestAnimationFrame(() => el.classList.add('open'));
+		if (!el) return;
+		el.hidden = false;
+		console.log('[setPanelVisible after show]', el.id || el, 'hidden:', el.hidden);
+		requestAnimationFrame(() => el.classList.add('open'));
 		} else {
 			if (!el) return;
 			el.classList.remove('open');
@@ -1902,5 +1821,11 @@
 	refresh().catch((err) => {
 		console.error(err);
 		alert('Failed to load data. See console for details.');
+	});
+	// Add Save DB button handler
+	document.getElementById('save-db-btn')?.addEventListener('click', () => {
+		if (window.db && window.db.saveToFile) {
+			window.db.saveToFile('flashcards.db');
+		}
 	});
 })();

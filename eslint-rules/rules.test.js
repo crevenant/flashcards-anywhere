@@ -1,13 +1,18 @@
 // Unit tests for custom ESLint rules
 // Uses ESLint RuleTester
 
+
 const { RuleTester } = require('eslint');
 const blankLineAfterApiCall = require('../eslint-rules/blank-line-after-api-call');
 const blankLineAfterBraceParen = require('../eslint-rules/blank-line-after-brace-paren');
 
-const ruleTester = new RuleTester({
-  parserOptions: { ecmaVersion: 2020, sourceType: 'module' },
+RuleTester.setDefaultConfig({
+  languageOptions: {
+    ecmaVersion: 2020,
+    sourceType: 'module',
+  },
 });
+const ruleTester = new RuleTester();
 
 describe('blank-line-after-api-call', () => {
   ruleTester.run('blank-line-after-api-call', blankLineAfterApiCall, {
@@ -28,13 +33,13 @@ describe('blank-line-after-api-call', () => {
 describe('blank-line-after-brace-paren', () => {
   ruleTester.run('blank-line-after-brace-paren', blankLineAfterBraceParen, {
     valid: [
-      'function foo() {\n  bar();\n});\n\nconst x = 1;',
+      'someFunction(() => {\n  bar();\n});\n\nconst x = 1;',
     ],
     invalid: [
       {
-        code: 'function foo() {\n  bar();\n});\nconst x = 1;',
+        code: 'someFunction(() => {\n  bar();\n});\nconst x = 1;',
         errors: [{ message: "Expected extra blank line after '});'" }],
-        output: 'function foo() {\n  bar();\n});\n\nconst x = 1;',
+        output: 'someFunction(() => {\n  bar();\n});\n\nconst x = 1;',
       },
     ],
   });
