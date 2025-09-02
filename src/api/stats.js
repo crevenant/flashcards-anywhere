@@ -12,18 +12,20 @@ function registerStatsRoutes(app, db) {
   app.get('/api/stats', (req, res) => {
     const deck = req.query.deck;
     if (deck) {
-      db.get('SELECT COUNT(*) as cardCount FROM cards WHERE deck_id = ?', [deck], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
+      try {
+        const row = db.prepare('SELECT COUNT(*) as cardCount FROM cards WHERE deck_id = ?').get(deck);
         res.json({ deck, cardCount: row.cardCount });
-      });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
     } else {
-      db.get('SELECT COUNT(*) as cardCount FROM cards', [], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        db.get('SELECT COUNT(*) as deckCount FROM decks', [], (err2, row2) => {
-          if (err2) return res.status(500).json({ error: err2.message });
-          res.json({ cardCount: row.cardCount, deckCount: row2.deckCount });
-        });
-      });
+      try {
+        const row = db.prepare('SELECT COUNT(*) as cardCount FROM cards').get();
+        const row2 = db.prepare('SELECT COUNT(*) as deckCount FROM decks').get();
+        res.json({ cardCount: row.cardCount, deckCount: row2.deckCount });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
     }
   });
 }

@@ -20,9 +20,9 @@ function registerSrsRoutes(app, db) {
     }
     sql += ' LIMIT ?';
     params.push(limit);
-    db.all(sql, params, (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      // Parse choices as JSON if present and string
+    try {
+      const stmt = db.prepare(sql);
+      const rows = stmt.all(...params);
       rows.forEach((card) => {
         if (typeof card.choices === 'string') {
           try {
@@ -33,7 +33,9 @@ function registerSrsRoutes(app, db) {
         }
       });
       res.json({ cards: rows });
-    });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // SRS review (dummy endpoint, does not persist data)

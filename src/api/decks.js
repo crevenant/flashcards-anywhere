@@ -11,36 +11,45 @@ const router = express.Router();
 function registerDeckRoutes(app, db) {
   // Get all decks
   app.get('/api/decks', (req, res) => {
-    db.all('SELECT * FROM decks', [], (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
+    try {
+      const rows = db.prepare('SELECT * FROM decks').all();
       res.json({ decks: rows });
-    });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // Add a new deck
   app.post('/api/decks', (req, res) => {
     const { name } = req.body;
-    db.run('INSERT INTO decks (name) VALUES (?)', [name], function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: this.lastID, name });
-    });
+    try {
+      const stmt = db.prepare('INSERT INTO decks (name) VALUES (?)');
+      const info = stmt.run(name);
+      res.json({ id: info.lastInsertRowid, name });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // Update a deck's name
   app.put('/api/decks/:id', (req, res) => {
     const { name } = req.body;
-    db.run('UPDATE decks SET name = ? WHERE id = ?', [name, req.params.id], function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+    try {
+      db.prepare('UPDATE decks SET name = ? WHERE id = ?').run(name, req.params.id);
       res.json({ id: req.params.id, name });
-    });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // Delete a deck by id
   app.delete('/api/decks/:id', (req, res) => {
-    db.run('DELETE FROM decks WHERE id = ?', [req.params.id], function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+    try {
+      db.prepare('DELETE FROM decks WHERE id = ?').run(req.params.id);
       res.json({ success: true });
-    });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 }
 

@@ -18,7 +18,7 @@ console.log('Starting server.js...');
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
-const db = require('./db/db');
+const { loadDatabase } = require('./db/db');
 // Modular API route registration
 const registerDeckRoutes = require('./api/decks');
 const registerCardRoutes = require('./api/cards');
@@ -40,25 +40,29 @@ app.use(express.static(config.PUBLIC_DIR));
 app.use('/src/frontend/utils', express.static(path.join(__dirname, 'frontend', 'utils')));
 
 
-// Register modular API routes
-registerDeckRoutes(app, db);
-registerCardRoutes(app, db);
-registerSrsRoutes(app, db);
-registerReviewRoutes(app, db);
-registerStatsRoutes(app, db);
 
-// Start the server only if run directly (not during tests)
-// This allows the app to be imported for testing without starting the server
-if (require.main === module) {
-	console.log('Reached listen block');
-	app.listen(PORT, (err) => {
-		if (err) {
-			console.error('[Backend Startup Error] Failed to start server:', err);
-			process.exit(1);
-		}
-		console.log(`Flashcards Anywhere Node server running at http://localhost:${PORT}`);
-	});
-}
 
-// Export the app for testing and integration
-module.exports = app;
+let appReady = (async () => {
+	const db = await loadDatabase();
+	registerDeckRoutes(app, db);
+	registerCardRoutes(app, db);
+	registerSrsRoutes(app, db);
+	registerReviewRoutes(app, db);
+	registerStatsRoutes(app, db);
+
+	// Start the server only if run directly (not during tests)
+	if (require.main === module) {
+		console.log('Reached listen block');
+		app.listen(PORT, (err) => {
+			if (err) {
+				console.error('[Backend Startup Error] Failed to start server:', err);
+				process.exit(1);
+			}
+			console.log(`Flashcards Anywhere Node server running at http://localhost:${PORT}`);
+		});
+	}
+	return app;
+})();
+
+// Export a promise that resolves to the app for testing and integration
+module.exports = appReady;
