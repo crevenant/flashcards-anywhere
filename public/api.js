@@ -40,27 +40,30 @@ window.api = {
     }
   },
   async addCard(card) {
-    await window.dbReady;
-    // card: { front, back, deck_id, ... }
-    const keys = Object.keys(card);
-    const vals = keys.map(k => card[k]);
-    const placeholders = keys.map(() => '?').join(',');
-    window.db.exec(`INSERT INTO cards (${keys.join(',')}) VALUES (${placeholders})`, vals);
-    return { success: true };
+  await window.dbReady;
+  // card: { front, back, deck_id, ... }
+  const keys = Object.keys(card);
+  const vals = keys.map(k => card[k]);
+  const placeholders = keys.map(() => '?').join(',');
+  window.db.exec(`INSERT INTO cards (${keys.join(',')}) VALUES (${placeholders})`, vals);
+  if (window.db && window.db.saveToFile) window.db.saveToFile('flashcards.db');
+  return { success: true };
   },
   async updateCard(id, patch) {
-    await window.dbReady;
-    const keys = Object.keys(patch);
-    const vals = keys.map(k => patch[k]);
-    const setClause = keys.map(k => `${k} = ?`).join(', ');
-    vals.push(id);
-    window.db.exec(`UPDATE cards SET ${setClause} WHERE id = ?`, vals);
-    return { success: true };
+  await window.dbReady;
+  const keys = Object.keys(patch);
+  const vals = keys.map(k => patch[k]);
+  const setClause = keys.map(k => `${k} = ?`).join(', ');
+  vals.push(id);
+  window.db.exec(`UPDATE cards SET ${setClause} WHERE id = ?`, vals);
+  if (window.db && window.db.saveToFile) window.db.saveToFile('flashcards.db');
+  return { success: true };
   },
   async deleteCard(id) {
-    await window.dbReady;
-    window.db.exec('DELETE FROM cards WHERE id = ?', [id]);
-    return { success: true };
+  await window.dbReady;
+  window.db.exec('DELETE FROM cards WHERE id = ?', [id]);
+  if (window.db && window.db.saveToFile) window.db.saveToFile('flashcards.db');
+  return { success: true };
   },
   async createDeck(name) {
     await window.dbReady;

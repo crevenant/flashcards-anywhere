@@ -25,20 +25,37 @@
     return window.initSqlJs;
   }
 
+  let resolvedDbPath = dbPath;
   async function loadDbFile() {
     // Try to load from filesystem (Electron), else fetch
-    if (window.require && window.require('fs')) {
+  if (window.require && window.require('fs')) {
       // Electron renderer with Node integration
       const fs = window.require('fs');
       const path = window.require('path');
-      const appPath = window.require('electron').remote.app.getAppPath();
-      const dbFile = path.join(appPath, 'data', 'flashcards.db');
-      return fs.readFileSync(dbFile);
+      const os = window.require('os');
+      const electron = window.require('electron');
+      // Use user data dir for persistent DB
+      const userData = (electron.remote && electron.remote.app.getPath('userData')) || (electron.app && electron.app.getPath('userData'));
+      const appPath = electron.remote.app.getAppPath();
+  const dbFile = path.join(userData, 'flashcards.db');
+  resolvedDbPath = dbFile;
+      // If DB does not exist in userData, copy from app resources
+      if (!fs.existsSync(dbFile)) {
+        const bundledDb = path.join(appPath, 'data', 'flashcards.db');
+        if (fs.existsSync(bundledDb)) {
+          fs.mkdirSync(userData, { recursive: true });
+          fs.copyFileSync(bundledDb, dbFile);
+        } else {
+          throw new Error('Bundled DB not found: ' + bundledDb);
+        }
+      }
+  return fs.readFileSync(dbFile);
     } else {
       // Browser: fetch from server
       const res = await fetch(dbPath);
       if (!res.ok) throw new Error('Failed to fetch DB file');
-      return await res.arrayBuffer();
+  resolvedDbPath = dbPath;
+  return await res.arrayBuffer();
     }
   }
 
@@ -54,6 +71,13 @@
   }
 
   window.db = {
+    getPath() {
+      // On Windows, ensure backslashes are used for display
+      if (typeof resolvedDbPath === 'string' && window.process && window.process.platform === 'win32') {
+        return resolvedDbPath.replace(/\//g, '\\');
+      }
+      return resolvedDbPath;
+    },
     query(sql, params) {
       if (!dbLoaded) throw new Error('DB not loaded');
       const stmt = db.prepare(sql);
