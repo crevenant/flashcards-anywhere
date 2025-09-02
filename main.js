@@ -1,3 +1,10 @@
+// Ensure only one instance of the app is running
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+	app.quit();
+	process.exit(0);
+}
+
 /* eslint-env node */
 // Electron main process entry point
 // Responsible for creating the main application window and handling app lifecycle events
@@ -28,9 +35,20 @@ function createWindow() {
 
 // Start backend server as a child process
 function startBackend() {
-	// Use Node to run server.js
-	const backend = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
-		stdio: 'ignore', // or ['ignore', 'pipe', 'pipe'] to capture output
+	// Prevent infinite Electron spawn: only start backend if not running under Electron
+	const isElectron = !!process.versions.electron;
+	const execPath = process.execPath.toLowerCase();
+	// If running under Electron, do not spawn backend
+	if (isElectron && execPath.includes('electron')) {
+		return null;
+	}
+	// Always use Node to run the backend, never Electron
+	let nodeExec = process.env.NODE_EXEC_PATH || process.execPath;
+	if (execPath.includes('electron')) {
+		nodeExec = 'node'; // fallback to system node if running under Electron
+	}
+	const backend = spawn(nodeExec, [path.join(__dirname, 'server.js')], {
+		stdio: 'ignore',
 		detached: true,
 	});
 	backend.unref();
