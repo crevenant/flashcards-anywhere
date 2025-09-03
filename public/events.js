@@ -1,3 +1,26 @@
+// Setup deck and card list event handlers (deck toggles, rename/delete, card edit/delete)
+export function setupDeckCardEvents(state, els, helpers) {
+	if (els.toggleDecksBtn) {
+		const setDecksVisible = (show) => {
+			state.showDecks = !!show;
+			if (els.decksSection) helpers.setPanelVisible(els.decksSection, state.showDecks);
+			els.toggleDecksBtn.classList.toggle('active', state.showDecks);
+			els.toggleDecksBtn.setAttribute('aria-pressed', state.showDecks ? 'true' : 'false');
+			if (state.showDecks) helpers.refresh();
+			try {
+				localStorage.setItem('showDecks', state.showDecks ? '1' : '0');
+			} catch {}
+			helpers.updateViewerVisibility(state);
+		};
+		els.toggleDecksBtn.addEventListener('click', () => setDecksVisible(!state.showDecks));
+		try {
+			state.showDecks = localStorage.getItem('showDecks') === '1';
+		} catch {}
+		setDecksVisible(state.showDecks);
+		window.setDecksVisible = setDecksVisible;
+	}
+	// Deck rename/delete and card edit/delete are handled in renderDecks/renderCardsTable via window helpers
+}
 // Setup toggle button event handlers (timer, auto-advance, adder, decks, etc.)
 export function setupToggleEvents(state, els, helpers) {
 	if (els.timerBtn) {

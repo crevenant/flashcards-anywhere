@@ -1,6 +1,6 @@
 	import { state } from './state.js';
 	import { renderDecks, renderCardsTable, ensureAutoAdvProgressUI, updateViewerVisibility, shouldAutoAdvanceFromState, renderCard, setResult, clearResult } from './ui.js';
-	import { setupCardEvents, setupToggleEvents } from './events.js';
+	import { setupCardEvents, setupToggleEvents, setupDeckCardEvents } from './events.js';
 	import { shuffle } from './utils.js';
 
 	// Use utilities attached to window (see below for attaching them)
@@ -1259,6 +1259,12 @@
 		clearAutoAdvance,
 		setPanelVisible,
 		updateViewerVisibility
+	});
+	// Setup deck and card list events (deck toggles, rename/delete, card edit/delete)
+	setupDeckCardEvents(state, els, {
+		setPanelVisible,
+		updateViewerVisibility,
+		refresh
 	});
 	function bindSrsButtons() {
 		const click = (grade) => async () => {
