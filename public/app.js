@@ -1,6 +1,6 @@
 	import { state } from './state.js';
 	import { renderDecks, renderCardsTable, ensureAutoAdvProgressUI, updateViewerVisibility, shouldAutoAdvanceFromState, renderCard, setResult, clearResult } from './ui.js';
-	import { setupCardEvents } from './events.js';
+	import { setupCardEvents, setupToggleEvents } from './events.js';
 	import { shuffle } from './utils.js';
 
 	// Use utilities attached to window (see below for attaching them)
@@ -1251,6 +1251,15 @@
 	els.card.addEventListener('keydown', (e) => {
 	// Setup card navigation and flip events
 	setupCardEvents(state, els, { clearTimer, clearCardTimer, renderCard, next, prev });
+	// Setup toggle button events (timer, auto-advance, adder)
+	setupToggleEvents(state, els, {
+		startCardTimer,
+		clearCardTimer,
+		startAutoAdvance,
+		clearAutoAdvance,
+		setPanelVisible,
+		updateViewerVisibility
+	});
 	function bindSrsButtons() {
 		const click = (grade) => async () => {
 			const c = state.cards[state.idx];
