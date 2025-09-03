@@ -1,4 +1,6 @@
 	import { state } from './state.js';
+	import { renderDecks, renderCardsTable, ensureAutoAdvProgressUI, updateViewerVisibility, shouldAutoAdvanceFromState } from './ui.js';
+	import { setupCardEvents } from './events.js';
 
 	// Use utilities attached to window (see below for attaching them)
 
@@ -1245,46 +1247,9 @@
 	}
 
 	// Events
-	els.card.addEventListener('click', () => {
-		const c = state.cards[state.idx];
-		if (c && (c.type || 'basic') === 'basic') {
-			state.timeoutReveal = false;
-			state.showBack = !state.showBack;
-			// Clear timers first, then render to allow re-scheduling based on new state
-			clearTimer();
-			clearCardTimer();
-			renderCard();
-			// If showing back, keep it until user navigates; no auto-advance
-		}
-	});
 	els.card.addEventListener('keydown', (e) => {
-		if (e.key === ' ' || e.key === 'Enter') {
-			e.preventDefault();
-			const c = state.cards[state.idx];
-			if (!c) return;
-			const type = c.type || 'basic';
-			// If answer/result is showing, space/enter advances (mouse click does not)
-			if (
-				(type === 'basic' && state.showBack) ||
-				(type === 'mcq' && (state.multiChecked || state.selected !== null))
-			) {
-				next();
-				return;
-			}
-			// Otherwise, for basic cards, toggle front/back
-			if (type === 'basic') {
-				state.timeoutReveal = false;
-				state.showBack = !state.showBack;
-				clearTimer();
-				clearCardTimer();
-				renderCard();
-			}
-		} else if (e.key === 'ArrowRight') {
-			next();
-		} else if (e.key === 'ArrowLeft') {
-			prev();
-		}
-	});
+	// Setup card navigation and flip events
+	setupCardEvents(state, els, { clearTimer, clearCardTimer, renderCard, next, prev });
 	function bindSrsButtons() {
 		const click = (grade) => async () => {
 			const c = state.cards[state.idx];
@@ -1789,4 +1754,5 @@
 			window.db.saveToFile('flashcards.db');
 		}
 	});
+});
 })();
