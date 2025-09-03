@@ -1,6 +1,7 @@
 	import { state } from './state.js';
-	import { renderDecks, renderCardsTable, ensureAutoAdvProgressUI, updateViewerVisibility, shouldAutoAdvanceFromState } from './ui.js';
+	import { renderDecks, renderCardsTable, ensureAutoAdvProgressUI, updateViewerVisibility, shouldAutoAdvanceFromState, renderCard, setResult, clearResult } from './ui.js';
 	import { setupCardEvents } from './events.js';
+	import { shuffle } from './utils.js';
 
 	// Use utilities attached to window (see below for attaching them)
 
